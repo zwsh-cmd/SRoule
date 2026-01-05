@@ -132,11 +132,35 @@ select:focus {
 }
 
 /* Modal & Result Area (維持原樣，微調圓角) */
+
+/* 新增：Modal 遮罩層樣式，讓它浮起來並預設隱藏 */
+.modal {
+    display: none; /* 預設不顯示 */
+    position: fixed; /* 固定在螢幕上 */
+    z-index: 200; /* 確保在最上層 */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4); /* 半透明黑底 */
+    justify-content: center; /* 內容左右置中 */
+    align-items: center; /* 內容上下置中 */
+}
+
+/* 內容區塊共用樣式 */
 .modal-content, #result-area {
     border-radius: var(--border-radius);
     background: var(--card-bg);
     box-shadow: 0 5px 20px rgba(0,0,0,0.08);
 }
+
+/* 新增：Modal 內部的白卡片樣式 */
+.modal-content {
+    padding: 20px;
+    width: 85%; /* 手機版寬度 */
+    max-width: 400px; /* 電腦版最大寬度 */
+}
+
 #result-area { padding: 25px; margin-top: 20px; display: none; }
 
 /* 浮動按鈕 (膠囊狀 + 文字) */
