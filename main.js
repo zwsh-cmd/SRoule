@@ -44,12 +44,11 @@ function renderApp() {
     }
 }
 
-// 3. 渲染下拉選單列 (改為 Input + Datalist 以支援直接輸入)
+// 3. 渲染下拉選單列 (Input + Datalist + 新增按鈕)
 function renderDropdownRow(parent, cat, subCat, items) {
     const row = document.createElement('div');
     row.className = 'sub-category-row';
 
-    // 如果有小分類標題
     if (subCat) {
         const label = document.createElement('div');
         label.className = 'sub-title';
@@ -61,7 +60,6 @@ function renderDropdownRow(parent, cat, subCat, items) {
     const wrapper = document.createElement('div');
     wrapper.className = 'select-wrapper';
 
-    // 使用 Input + Datalist
     const inputId = `input-${cat}-${subCat || 'main'}`;
     const listId = `list-${cat}-${subCat || 'main'}`;
 
@@ -69,15 +67,15 @@ function renderDropdownRow(parent, cat, subCat, items) {
     input.type = 'text';
     input.id = inputId;
     input.setAttribute('list', listId);
-    input.placeholder = "請點擊輸入新選項或由系統隨機選取"; 
+    input.placeholder = "輸入新內容或從清單選取..."; 
     input.style.width = '100%';
     input.style.padding = '10px 12px';
     input.style.border = '1px solid var(--border-color)';
     input.style.borderRadius = '8px';
     input.style.fontSize = '1rem';
     
-    // 長按輸入框：觸發管理清單功能 (因為 datalist 選項無法被長按，改為長按輸入框來管理)
-    addLongPressEvent(input, () => manageOptions(cat, subCat));
+    // 綁定長按事件到 Input 上，用於觸發刪除功能
+    addLongPressEvent(input, () => showDeleteMenu(cat, subCat, input.value));
 
     const datalist = document.createElement('datalist');
     datalist.id = listId;
@@ -88,18 +86,19 @@ function renderDropdownRow(parent, cat, subCat, items) {
         datalist.appendChild(option);
     });
 
-    // 將 Input 和 Datalist 放入
     wrapper.appendChild(input);
     wrapper.appendChild(datalist);
     
-    // 雖然可直接輸入，但保留一個管理按鈕比較直覺
-    const manageBtn = document.createElement('button');
-    manageBtn.className = 'icon-btn';
-    manageBtn.textContent = '⚙️'; 
-    manageBtn.title = '管理選項';
-    manageBtn.onclick = () => manageOptions(cat, subCat);
+    // 恢復為 + 號按鈕，點擊直接新增
+    const addBtn = document.createElement('button');
+    addBtn.className = 'icon-btn';
+    addBtn.textContent = '+'; 
+    addBtn.title = '新增目前文字到清單';
+    addBtn.style.marginLeft = '5px';
+    addBtn.style.fontSize = '1.2rem';
+    addBtn.onclick = () => addItemFromInput(cat, subCat);
 
-    wrapper.appendChild(manageBtn);
+    wrapper.appendChild(addBtn);
     row.appendChild(wrapper);
     parent.appendChild(row);
 }
@@ -135,54 +134,59 @@ function renameCategory(cat, subCat) {
     renderApp();
 }
 
-// 新增：管理選項的功能 (取代原本單純的 addItem)
-function manageOptions(cat, subCat) {
-    const action = prompt(`管理 [${cleanTitle(subCat || cat)}] 的選項：\n1. 新增目前輸入框的內容\n2. 刪除/修改現有選項 (請輸入選項文字)`, "1");
-    if (!action) return;
+// 功能：從輸入框直接新增
+function addItemFromInput(cat, subCat) {
+    const inputId = `input-${cat}-${subCat || 'main'}`;
+    const input = document.getElementById(inputId);
+    const val = input.value.trim();
 
-    if (action === "1") {
-        // 新增目前 Input 裡面的值
-        const inputId = `input-${cat}-${subCat || 'main'}`;
-        const input = document.getElementById(inputId);
-        const val = input.value.trim();
-        if (val) {
-            if (subCat) appData[cat][subCat].push(val);
-            else appData[cat].push(val);
+    if (!val) {
+        alert("請先在框框內輸入要新增的文字");
+        return;
+    }
+
+    // 檢查是否已存在
+    const arr = subCat ? appData[cat][subCat] : appData[cat];
+    if (arr.includes(val)) {
+        alert("這個選項已經存在囉！");
+        return;
+    }
+
+    // 新增
+    if (subCat) appData[cat][subCat].push(val);
+    else appData[cat].push(val);
+    
+    saveData(appData);
+    renderApp();
+    
+    // 保持輸入框內容
+    setTimeout(() => {
+        const newInput = document.getElementById(inputId);
+        if(newInput) newInput.value = val;
+        alert(`已新增「${val}」`);
+    }, 50);
+}
+
+// 功能：長按輸入框觸發刪除選單
+function showDeleteMenu(cat, subCat, currentValue) {
+    const arr = subCat ? appData[cat][subCat] : appData[cat];
+    
+    // 如果輸入框有值，優先詢問是否刪除該值
+    let defaultText = currentValue && arr.includes(currentValue) ? currentValue : "";
+    
+    const target = prompt(`【刪除模式】\n請輸入要刪除的選項完整名稱：\n(目前清單：${arr.join(', ')})`, defaultText);
+    
+    if (!target) return;
+
+    const idx = arr.indexOf(target);
+    if (idx > -1) {
+        if (confirm(`確定要刪除「${target}」嗎？`)) {
+            arr.splice(idx, 1);
             saveData(appData);
             renderApp();
-            // 重新聚焦並填入剛剛的值
-            setTimeout(() => {
-                const newInput = document.getElementById(inputId);
-                if(newInput) newInput.value = val; 
-            }, 100);
-        } else {
-            alert("輸入框是空的，請先在框框內輸入文字");
         }
     } else {
-        // 刪除或修改
-        const target = prompt("請輸入要刪除或修改的選項「完整文字」：");
-        if (!target) return;
-        
-        let arr = subCat ? appData[cat][subCat] : appData[cat];
-        const idx = arr.indexOf(target);
-        
-        if (idx > -1) {
-            const mode = prompt(`找到 "${target}"。\n輸入 'd' 刪除，輸入 'r' 重新命名`, "d");
-            if (mode === 'd') {
-                arr.splice(idx, 1);
-                saveData(appData);
-                renderApp();
-            } else if (mode === 'r') {
-                const newName = prompt("新名稱：", target);
-                if (newName) {
-                    arr[idx] = newName;
-                    saveData(appData);
-                    renderApp();
-                }
-            }
-        } else {
-            alert("找不到該選項，請確認文字完全一致");
-        }
+        alert("找不到該選項，請確認文字完全一致。");
     }
 }
 
