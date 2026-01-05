@@ -44,7 +44,7 @@ function renderApp() {
     }
 }
 
-// 3. 渲染下拉選單列 (Input + Datalist + 新增按鈕)
+// 3. 渲染下拉選單列 (Select + 新增按鈕)
 function renderDropdownRow(parent, cat, subCat, items) {
     const row = document.createElement('div');
     row.className = 'sub-category-row';
@@ -60,44 +60,40 @@ function renderDropdownRow(parent, cat, subCat, items) {
     const wrapper = document.createElement('div');
     wrapper.className = 'select-wrapper';
 
-    const inputId = `input-${cat}-${subCat || 'main'}`;
-    const listId = `list-${cat}-${subCat || 'main'}`;
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.id = inputId;
-    input.setAttribute('list', listId);
-    input.placeholder = "輸入新內容或從清單選取..."; 
-    input.style.width = '100%';
-    input.style.padding = '10px 12px';
-    input.style.border = '1px solid var(--border-color)';
-    input.style.borderRadius = '8px';
-    input.style.fontSize = '1rem';
+    // 建立 Select (下拉選單)
+    const select = document.createElement('select');
+    select.id = `select-${cat}-${subCat || 'main'}`;
     
-    // 綁定長按事件到 Input 上，用於觸發刪除功能
-    addLongPressEvent(input, () => showDeleteMenu(cat, subCat, input.value));
-
-    const datalist = document.createElement('datalist');
-    datalist.id = listId;
+    // 加入預設選項 (隨機)
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = "";
+    defaultOpt.text = "-- 隨機 / 讓 AI 決定 --";
+    select.appendChild(defaultOpt);
 
     items.forEach(item => {
         const option = document.createElement('option');
         option.value = item;
-        datalist.appendChild(option);
+        option.text = item;
+        select.appendChild(option);
     });
-
-    wrapper.appendChild(input);
-    wrapper.appendChild(datalist);
     
-    // 恢復為 + 號按鈕，點擊直接新增
+    // 綁定長按事件到 Select 上，用於刪除選項
+    // 注意：部分手機瀏覽器對 Select 的事件支援有限，但我們盡量支援
+    select.addEventListener('change', (e) => {
+        // 使用者選取後，如果不喜歡可以長按刪除，或是這裡只做選取
+    });
+    addLongPressEvent(select, () => showDeleteMenu(cat, subCat, select.value));
+
+    // 新增按鈕 (+)
     const addBtn = document.createElement('button');
     addBtn.className = 'icon-btn';
     addBtn.textContent = '+'; 
-    addBtn.title = '新增目前文字到清單';
+    addBtn.title = '新增選項';
     addBtn.style.marginLeft = '5px';
     addBtn.style.fontSize = '1.2rem';
-    addBtn.onclick = () => addItemFromInput(cat, subCat);
+    addBtn.onclick = () => addItemViaPrompt(cat, subCat);
 
+    wrapper.appendChild(select);
     wrapper.appendChild(addBtn);
     row.appendChild(wrapper);
     parent.appendChild(row);
@@ -134,36 +130,30 @@ function renameCategory(cat, subCat) {
     renderApp();
 }
 
-// 功能：從輸入框直接新增
-function addItemFromInput(cat, subCat) {
-    const inputId = `input-${cat}-${subCat || 'main'}`;
-    const input = document.getElementById(inputId);
-    const val = input.value.trim();
+// 功能：透過跳出視窗新增選項
+function addItemViaPrompt(cat, subCat) {
+    const val = prompt("請輸入新選項內容：");
+    if (!val || !val.trim()) return;
 
-    if (!val) {
-        alert("請先在框框內輸入要新增的文字");
-        return;
-    }
-
-    // 檢查是否已存在
+    const cleanVal = val.trim();
     const arr = subCat ? appData[cat][subCat] : appData[cat];
-    if (arr.includes(val)) {
+
+    if (arr.includes(cleanVal)) {
         alert("這個選項已經存在囉！");
         return;
     }
 
-    // 新增
-    if (subCat) appData[cat][subCat].push(val);
-    else appData[cat].push(val);
+    if (subCat) appData[cat][subCat].push(cleanVal);
+    else appData[cat].push(cleanVal);
     
     saveData(appData);
     renderApp();
     
-    // 保持輸入框內容
+    // 自動選中剛剛新增的項目
     setTimeout(() => {
-        const newInput = document.getElementById(inputId);
-        if(newInput) newInput.value = val;
-        alert(`已新增「${val}」`);
+        const selectId = `select-${cat}-${subCat || 'main'}`;
+        const select = document.getElementById(selectId);
+        if (select) select.value = cleanVal;
     }, 50);
 }
 
@@ -190,7 +180,7 @@ function showDeleteMenu(cat, subCat, currentValue) {
     }
 }
 
-// --- 生成邏輯區 (重大更新：支援部分隨機) ---
+// --- 生成邏輯區 (讀取 Select 選擇) ---
 document.getElementById('btn-generate').addEventListener('click', async () => {
     if (!getApiKey()) {
         alert("請先點擊右上角「設定」，輸入你的 Gemini API Key！");
@@ -204,14 +194,15 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
     for (const [cat, content] of Object.entries(appData)) {
         if (Array.isArray(content)) {
             // 單層結構
-            const inputId = `input-${cat}-main`;
-            const input = document.getElementById(inputId);
-            let val = input.value.trim();
+            const selectId = `select-${cat}-main`;
+            const select = document.getElementById(selectId);
+            let val = select.value;
 
-            // 邏輯：如果使用者沒填，或是填的是預設提示，則隨機
+            // 邏輯：如果使用者選的是空值 (隨機)，則隨機抽取
             if (!val) {
                 val = content[Math.floor(Math.random() * content.length)];
-                input.value = val; // 填入介面讓使用者看到
+                // 這裡不自動填回 Select，保持 "-- 隨機 --" 的狀態，或者你可以選擇填回
+                // select.value = val; 
             }
             
             currentSelection[cleanTitle(cat)] = val;
@@ -220,13 +211,12 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
         } else {
             // 巢狀結構
             for (const [subCat, items] of Object.entries(content)) {
-                const inputId = `input-${cat}-${subCat}`;
-                const input = document.getElementById(inputId);
-                let val = input.value.trim();
+                const selectId = `select-${cat}-${subCat}`;
+                const select = document.getElementById(selectId);
+                let val = select.value;
 
                 if (!val) {
                     val = items[Math.floor(Math.random() * items.length)];
-                    input.value = val;
                 }
 
                 currentSelection[`${cleanTitle(subCat)}`] = val;
