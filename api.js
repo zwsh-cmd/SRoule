@@ -1,16 +1,15 @@
-// api.js - 智慧萬用版
+// api.js - 免費版專用．智慧萬用版
 
-// 1. 取得 API Key (資安重點：只從 localStorage 拿)
+// 1. 取得 API Key
 function getApiKey() {
     return localStorage.getItem('gemini_api_key');
 }
 
-// 2. [核心功能] 自動尋找最強大的模型
+// 2. [核心功能] 自動尋找「免費且最強」的模型
 async function getBestModelUrl(apiKey) {
     const listUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`;
     
     try {
-        // 先問 Google 有哪些模型
         const response = await fetch(listUrl);
         const data = await response.json();
         
@@ -20,9 +19,9 @@ async function getBestModelUrl(apiKey) {
             m.supportedGenerationMethods.includes('generateContent')
         );
 
-        // 排序邏輯：版本號越新越好 (3 > 2 > 1.5)，如果是同版本，Pro 優先於 Flash
+        // ★★★ 關鍵修正排序邏輯 ★★★
         models.sort((a, b) => {
-            // 抓版本號數字 (例如 1.5, 2.0, 3)
+            // A. 先比版本號：數字越大越新 (例如 3 > 2.0 > 1.5)
             const getVer = (name) => {
                 const match = name.match(/(\d+(\.\d+)?)/);
                 return match ? parseFloat(match[0]) : 0;
@@ -30,40 +29,36 @@ async function getBestModelUrl(apiKey) {
             const verA = getVer(a.name);
             const verB = getVer(b.name);
 
-            if (verA !== verB) return verB - verA; // 數字大的排前面
+            if (verA !== verB) return verB - verA; // 版本新的排前面
 
-            // 如果版本一樣，優先選 Pro (因為妳要最強的)
-            const isPro = (name) => name.toLowerCase().includes('pro');
-            return isPro(b.name) - isPro(a.name);
+            // B. 如果版本一樣，優先選 "Flash"！ (這是為了救妳的荷包)
+            // Flash 通常是免費額度最慷慨的型號，Pro 往往限制很多
+            const isFlash = (name) => name.toLowerCase().includes('flash');
+            return isFlash(b.name) - isFlash(a.name);
         });
 
         if (models.length > 0) {
             const bestModel = models[0].name.replace('models/', '');
-            console.log(`已自動切換至最強模型：${bestModel}`); // 妳可以在 Console 看到它選了誰
+            console.log(`已自動切換至最佳免費模型：${bestModel}`); 
             return `https://generativelanguage.googleapis.com/v1beta/models/${bestModel}:generateContent?key=${apiKey}`;
         }
     } catch (e) {
-        console.warn("自動偵測失敗，使用預設備案", e);
+        console.warn("自動偵測失敗，使用保底方案", e);
     }
 
-    // 萬一偵測失敗的備案 (使用通用別名)
-    return `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+    // 萬一真的連不上列表，回退到最經典穩定的 1.5 Flash
+    return `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 }
 
 // 3. 呼叫 Gemini API
 async function generateStory(prompt) {
     const apiKey = getApiKey();
-    if (!apiKey) {
-        throw new Error("NO_KEY"); 
-    }
+    if (!apiKey) throw new Error("NO_KEY"); 
 
-    // ★ 這裡改成了動態取得 URL
     const url = await getBestModelUrl(apiKey);
 
     const requestBody = {
-        contents: [{
-            parts: [{ text: prompt }]
-        }]
+        contents: [{ parts: [{ text: prompt }] }]
     };
 
     try {
@@ -75,8 +70,10 @@ async function generateStory(prompt) {
 
         const data = await response.json();
         
+        // 如果還是遇到錯誤 (例如 429 Too Many Requests)，顯示清楚的訊息
         if (data.error) {
-            throw new Error(data.error.message);
+            console.error("API Error Details:", data.error);
+            throw new Error(`Google API 拒絕請求：${data.error.message}`);
         }
 
         const text = data.candidates[0].content.parts[0].text;
@@ -84,26 +81,23 @@ async function generateStory(prompt) {
         
         return JSON.parse(cleanText);
     } catch (error) {
-        console.error("API Error:", error);
+        console.error("API 呼叫失敗:", error);
         throw error;
     }
 }
 
-// 4. 呼叫回應 API (用於歷史紀錄的對話)
+// 4. 呼叫回應 API
 async function generateReply(historyContext, userMessage) {
     const apiKey = getApiKey();
     if (!apiKey) throw new Error("NO_KEY");
 
-    // ★ 這裡也改成了動態取得 URL
     const url = await getBestModelUrl(apiKey);
     
     const prompt = `
     你是一個編劇顧問。
     上一段故事背景：${JSON.stringify(historyContext)}
-    
     使用者的問題或回應：${userMessage}
-    
-    請以繁體中文回答，針對故事內容進行討論或延伸。
+    請以繁體中文回答。
     `;
 
     const requestBody = {
@@ -117,5 +111,7 @@ async function generateReply(historyContext, userMessage) {
     });
 
     const data = await response.json();
+    if (data.error) throw new Error(data.error.message);
+    
     return data.candidates[0].content.parts[0].text;
 }
