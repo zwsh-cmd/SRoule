@@ -1,4 +1,4 @@
-// api.js - 免費版專用．智慧萬用版
+// api.js - 
 
 // 1. 取得 API Key
 function getApiKey() {
@@ -21,20 +21,22 @@ async function getBestModelUrl(apiKey) {
 
         // ★★★ 關鍵修正排序邏輯 ★★★
         models.sort((a, b) => {
-            // A. 先比版本號：數字越大越新 (例如 3 > 2.0 > 1.5)
+            
+            const isFlash = (name) => name.toLowerCase().includes('flash');
+            const flashA = isFlash(a.name);
+            const flashB = isFlash(b.name);
+            
+            // 如果 A 是 Flash 但 B 不是，A 排前面 (return -1)
+            if (flashA && !flashB) return -1;
+            // 如果 B 是 Flash 但 A 不是，B 排前面 (return 1)
+            if (!flashA && flashB) return 1;
+
+            // B. 如果大家都是 (或都不是) Flash，那就比版本號：數字越大越新
             const getVer = (name) => {
                 const match = name.match(/(\d+(\.\d+)?)/);
                 return match ? parseFloat(match[0]) : 0;
             };
-            const verA = getVer(a.name);
-            const verB = getVer(b.name);
-
-            if (verA !== verB) return verB - verA; // 版本新的排前面
-
-            // B. 如果版本一樣，優先選 "Flash"！ (這是為了救妳的荷包)
-            // Flash 通常是免費額度最慷慨的型號，Pro 往往限制很多
-            const isFlash = (name) => name.toLowerCase().includes('flash');
-            return isFlash(b.name) - isFlash(a.name);
+            return getVer(b.name) - getVer(a.name); // 大的排前面
         });
 
         if (models.length > 0) {
@@ -46,7 +48,7 @@ async function getBestModelUrl(apiKey) {
         console.warn("自動偵測失敗，使用保底方案", e);
     }
 
-    // 萬一真的連不上列表，回退到最經典穩定的 1.5 Flash
+    // 萬一真的連不上列表，回退到最經典穩定的 1.5 Flash (這一定是免費的)
     return `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 }
 
@@ -73,7 +75,8 @@ async function generateStory(prompt) {
         // 如果還是遇到錯誤 (例如 429 Too Many Requests)，顯示清楚的訊息
         if (data.error) {
             console.error("API Error Details:", data.error);
-            throw new Error(`Google API 拒絕請求：${data.error.message}`);
+            // 這裡把它轉成中文錯誤訊息，讓妳比較好讀
+            throw new Error(`Google API 拒絕請求 (${data.error.code})：可能是額度不足或模型限制。`);
         }
 
         const text = data.candidates[0].content.parts[0].text;
