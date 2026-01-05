@@ -44,12 +44,12 @@ function renderApp() {
     }
 }
 
-// 3. 渲染下拉選單列
+// 3. 渲染下拉選單列 (改為 Input + Datalist 以支援直接輸入)
 function renderDropdownRow(parent, cat, subCat, items) {
     const row = document.createElement('div');
     row.className = 'sub-category-row';
 
-    // 如果有小分類標題 (如 "性別")
+    // 如果有小分類標題
     if (subCat) {
         const label = document.createElement('div');
         label.className = 'sub-title';
@@ -61,33 +61,45 @@ function renderDropdownRow(parent, cat, subCat, items) {
     const wrapper = document.createElement('div');
     wrapper.className = 'select-wrapper';
 
-    // 建立 Select 下拉選單
-    const select = document.createElement('select');
-    select.id = `select-${cat}-${subCat || 'main'}`; // 給它一個 ID 方便抓取
+    // 使用 Input + Datalist
+    const inputId = `input-${cat}-${subCat || 'main'}`;
+    const listId = `list-${cat}-${subCat || 'main'}`;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.id = inputId;
+    input.setAttribute('list', listId);
+    input.placeholder = "請點擊輸入新選項或由系統隨機選取"; 
+    input.style.width = '100%';
+    input.style.padding = '10px 12px';
+    input.style.border = '1px solid var(--border-color)';
+    input.style.borderRadius = '8px';
+    input.style.fontSize = '1rem';
     
-    // 加入一個預設選項 (或是隨機挑選前的提示)
-    const defaultOpt = document.createElement('option');
-    defaultOpt.text = "--- 請點擊隨機生成 ---";
-    defaultOpt.disabled = true;
-    defaultOpt.selected = true;
-    select.appendChild(defaultOpt);
+    // 長按輸入框：觸發管理清單功能 (因為 datalist 選項無法被長按，改為長按輸入框來管理)
+    addLongPressEvent(input, () => manageOptions(cat, subCat));
+
+    const datalist = document.createElement('datalist');
+    datalist.id = listId;
 
     items.forEach(item => {
         const option = document.createElement('option');
         option.value = item;
-        option.text = item;
-        select.appendChild(option);
+        datalist.appendChild(option);
     });
 
-    // 新增內容按鈕 (+)
-    const addBtn = document.createElement('button');
-    addBtn.className = 'icon-btn';
-    addBtn.textContent = '+';
-    addBtn.title = '新增選項';
-    addBtn.onclick = () => addItem(cat, subCat);
+    // 將 Input 和 Datalist 放入
+    wrapper.appendChild(input);
+    wrapper.appendChild(datalist);
+    
+    // 雖然可直接輸入，但保留一個管理按鈕比較直覺
+    const manageBtn = document.createElement('button');
+    manageBtn.className = 'icon-btn';
+    manageBtn.textContent = '⚙️'; 
+    manageBtn.title = '管理選項';
+    manageBtn.onclick = () => manageOptions(cat, subCat);
 
-    wrapper.appendChild(select);
-    wrapper.appendChild(addBtn);
+    wrapper.appendChild(manageBtn);
     row.appendChild(wrapper);
     parent.appendChild(row);
 }
@@ -123,16 +135,58 @@ function renameCategory(cat, subCat) {
     renderApp();
 }
 
-function addItem(cat, subCat) {
-    const newItem = prompt("新增選項內容：");
-    if (!newItem) return;
-    if (subCat) appData[cat][subCat].push(newItem);
-    else appData[cat].push(newItem);
-    saveData(appData);
-    renderApp();
+// 新增：管理選項的功能 (取代原本單純的 addItem)
+function manageOptions(cat, subCat) {
+    const action = prompt(`管理 [${cleanTitle(subCat || cat)}] 的選項：\n1. 新增目前輸入框的內容\n2. 刪除/修改現有選項 (請輸入選項文字)`, "1");
+    if (!action) return;
+
+    if (action === "1") {
+        // 新增目前 Input 裡面的值
+        const inputId = `input-${cat}-${subCat || 'main'}`;
+        const input = document.getElementById(inputId);
+        const val = input.value.trim();
+        if (val) {
+            if (subCat) appData[cat][subCat].push(val);
+            else appData[cat].push(val);
+            saveData(appData);
+            renderApp();
+            // 重新聚焦並填入剛剛的值
+            setTimeout(() => {
+                const newInput = document.getElementById(inputId);
+                if(newInput) newInput.value = val; 
+            }, 100);
+        } else {
+            alert("輸入框是空的，請先在框框內輸入文字");
+        }
+    } else {
+        // 刪除或修改
+        const target = prompt("請輸入要刪除或修改的選項「完整文字」：");
+        if (!target) return;
+        
+        let arr = subCat ? appData[cat][subCat] : appData[cat];
+        const idx = arr.indexOf(target);
+        
+        if (idx > -1) {
+            const mode = prompt(`找到 "${target}"。\n輸入 'd' 刪除，輸入 'r' 重新命名`, "d");
+            if (mode === 'd') {
+                arr.splice(idx, 1);
+                saveData(appData);
+                renderApp();
+            } else if (mode === 'r') {
+                const newName = prompt("新名稱：", target);
+                if (newName) {
+                    arr[idx] = newName;
+                    saveData(appData);
+                    renderApp();
+                }
+            }
+        } else {
+            alert("找不到該選項，請確認文字完全一致");
+        }
+    }
 }
 
-// --- 生成邏輯區 (重大更新：操作 Select) ---
+// --- 生成邏輯區 (重大更新：支援部分隨機) ---
 document.getElementById('btn-generate').addEventListener('click', async () => {
     if (!getApiKey()) {
         alert("請先點擊右上角「設定」，輸入你的 Gemini API Key！");
@@ -142,28 +196,37 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
     currentSelection = {};
     const promptParts = [];
 
-    // 遍歷資料，進行隨機抽取並更新 UI
+    // 遍歷資料
     for (const [cat, content] of Object.entries(appData)) {
         if (Array.isArray(content)) {
-            // 單層結構 (如 D, E)
-            const item = content[Math.floor(Math.random() * content.length)];
-            currentSelection[cleanTitle(cat)] = item;
-            promptParts.push(`${cleanTitle(cat)}: ${item}`);
+            // 單層結構
+            const inputId = `input-${cat}-main`;
+            const input = document.getElementById(inputId);
+            let val = input.value.trim();
+
+            // 邏輯：如果使用者沒填，或是填的是預設提示，則隨機
+            if (!val) {
+                val = content[Math.floor(Math.random() * content.length)];
+                input.value = val; // 填入介面讓使用者看到
+            }
             
-            // 更新 UI: 找到對應的 Select 並選中該項目
-            const select = document.getElementById(`select-${cat}-main`);
-            if (select) select.value = item;
+            currentSelection[cleanTitle(cat)] = val;
+            promptParts.push(`${cleanTitle(cat)}: ${val}`);
 
         } else {
-            // 巢狀結構 (如 A, B, C)
+            // 巢狀結構
             for (const [subCat, items] of Object.entries(content)) {
-                const item = items[Math.floor(Math.random() * items.length)];
-                currentSelection[`${cleanTitle(subCat)}`] = item;
-                promptParts.push(`${cleanTitle(subCat)}: ${item}`);
-                
-                // 更新 UI
-                const select = document.getElementById(`select-${cat}-${subCat}`);
-                if (select) select.value = item;
+                const inputId = `input-${cat}-${subCat}`;
+                const input = document.getElementById(inputId);
+                let val = input.value.trim();
+
+                if (!val) {
+                    val = items[Math.floor(Math.random() * items.length)];
+                    input.value = val;
+                }
+
+                currentSelection[`${cleanTitle(subCat)}`] = val;
+                promptParts.push(`${cleanTitle(subCat)}: ${val}`);
             }
         }
     }
@@ -179,7 +242,7 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
     resultArea.scrollIntoView({ behavior: 'smooth' });
 
     const prompt = `
-    你是一個專業編劇。請使用以下隨機抽取的設定寫一個故事大綱：
+    你是一個專業編劇。請使用以下設定寫一個故事大綱：
     ${promptParts.join('\n')}
 
     請嚴格遵守 JSON 格式回傳：
