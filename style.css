@@ -18,9 +18,12 @@ body {
     font-family: 'Helvetica Neue', Arial, sans-serif;
     background-color: var(--bg-color);
     color: var(--text-color);
-    margin: 0;
+    margin: 0 auto; /* 置中 */
     padding: 20px;
     padding-bottom: 100px;
+    max-width: 480px; /* 限制最大寬度，模擬手機 App */
+    min-height: 100vh;
+    box-shadow: 0 0 20px rgba(0,0,0,0.05); /* 兩側加點陰影更有質感 */
 }
 
 header {
@@ -157,4 +160,25 @@ select:focus {
     margin-bottom: 12px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
+}
+
+/* 設定按鈕 Icon 樣式 */
+.settings-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.settings-btn:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+.settings-btn svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--text-color);
 }
