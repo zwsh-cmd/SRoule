@@ -1,4 +1,5 @@
-const CACHE_NAME = 'script-roule-v2';
+// sw.js - 強制介面更新版 (v3)
+const CACHE_NAME = 'script-roule-v3'; // 改成 v3
 const urlsToCache = [
   './',
   './index.html',
@@ -8,10 +9,30 @@ const urlsToCache = [
   './data.js'
 ];
 
+// 1. 強制安裝：這行指令會逼瀏覽器立刻丟掉舊的介面
 self.addEventListener('install', event => {
+  self.skipWaiting(); 
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(urlsToCache))
+  );
+});
+
+// 2. 強制接管：讓新介面立刻生效
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then(cacheNames => {
+        return Promise.all(
+          cacheNames.map(cacheName => {
+            if (cacheName !== CACHE_NAME) {
+              return caches.delete(cacheName); // 刪掉那個輸入框位置錯誤的舊版本
+            }
+          })
+        );
+      })
+    ])
   );
 });
 
