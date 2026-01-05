@@ -13,7 +13,7 @@
 <body>
 
     <header>
-        <div style="display:flex; align-items:center; gap:12px;">
+        <div style="display:flex; align-items:center; gap:12px; cursor:pointer;" onclick="location.reload()">
             <img src="icon.png" alt="Logo" style="width:48px; height:48px; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
             <h1>ScriptRoule</h1>
         </div>
@@ -72,6 +72,21 @@
             <div style="text-align: right; margin-top: 10px;">
                 <button id="btn-close-settings" class="secondary">取消</button>
                 <button id="btn-save-key">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="universal-modal" class="modal">
+        <div class="modal-content">
+            <h3 id="u-modal-title">標題</h3>
+            <p id="u-modal-desc" style="font-size:0.9rem; color:#666; margin-bottom:10px;"></p>
+            <input type="text" id="u-modal-input" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; box-sizing: border-box;">
+            
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:15px;">
+                <button id="u-btn-delete" class="secondary danger" style="display:none;">刪除</button>
+                <div style="flex:1;"></div>
+                <button id="u-btn-cancel" class="secondary">取消</button>
+                <button id="u-btn-confirm">確定</button>
             </div>
         </div>
     </div>

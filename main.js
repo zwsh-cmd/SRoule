@@ -67,7 +67,7 @@ function renderDropdownRow(parent, cat, subCat, items) {
     // 加入預設選項 (隨機)
     const defaultOpt = document.createElement('option');
     defaultOpt.value = "";
-    defaultOpt.text = "-- 隨機 / 讓 AI 決定 --";
+    defaultOpt.text = "-- 新增選項 / 隨機抽取 --";
     select.appendChild(defaultOpt);
 
     items.forEach(item => {
@@ -99,7 +99,55 @@ function renderDropdownRow(parent, cat, subCat, items) {
     parent.appendChild(row);
 }
 
-// --- 編輯功能區 (維持不變) ---
+// --- 編輯與互動功能區 (原生 App 風格) ---
+
+// 1. 通用異步視窗 (Promise-based Modal)
+function openUniversalModal({ title, desc, defaultValue, showDelete }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('universal-modal');
+        const titleEl = document.getElementById('u-modal-title');
+        const descEl = document.getElementById('u-modal-desc');
+        const inputEl = document.getElementById('u-modal-input');
+        const btnConfirm = document.getElementById('u-btn-confirm');
+        const btnCancel = document.getElementById('u-btn-cancel');
+        const btnDelete = document.getElementById('u-btn-delete');
+
+        // 設定內容
+        titleEl.textContent = title;
+        descEl.textContent = desc || '';
+        inputEl.value = defaultValue || '';
+        
+        // 設定按鈕狀態
+        btnDelete.style.display = showDelete ? 'block' : 'none';
+        btnConfirm.textContent = showDelete ? '修改' : '確定'; // 如果有刪除鍵，確認鍵通常代表"修改"
+
+        modal.style.display = 'flex';
+        inputEl.focus();
+
+        // 事件處理 (使用一次性監聽器以免重複綁定)
+        const close = () => { modal.style.display = 'none'; };
+        
+        // 為了避免重複綁定，我們先 clone 節點或是重設 onclick
+        btnConfirm.onclick = () => {
+            close();
+            resolve({ action: 'confirm', value: inputEl.value.trim() });
+        };
+        
+        btnCancel.onclick = () => {
+            close();
+            resolve({ action: 'cancel' });
+        };
+
+        btnDelete.onclick = () => {
+            if(confirm('確定要刪除這個項目嗎？')) { // 這裡可以用原生 confirm 或再做一層，暫用原生比較快
+                close();
+                resolve({ action: 'delete' });
+            }
+        };
+    });
+}
+
+// 2. 長按事件綁定
 function addLongPressEvent(element, callback) {
     let timer;
     const start = () => timer = setTimeout(callback, 800);
@@ -111,72 +159,104 @@ function addLongPressEvent(element, callback) {
     element.addEventListener('touchend', end);
 }
 
-function renameCategory(cat, subCat) {
+// 3. 修改分類標題 (長按標題)
+async function renameCategory(cat, subCat) {
     const oldKey = subCat || cat;
-    // 提示時顯示原始 Key 讓使用者知道在改哪裡，或者只顯示乾淨的
-    const newName = prompt("修改標題 (請保留格式以便辨識，或直接輸入新名稱)：", oldKey);
-    if (!newName || newName === oldKey) return;
-
-    if (subCat) {
-        const items = appData[cat][subCat];
-        delete appData[cat][subCat];
-        appData[cat][newName] = items;
-    } else {
-        const content = appData[cat];
-        delete appData[cat];
-        appData[newName] = content;
-    }
-    saveData(appData);
-    renderApp();
-}
-
-// 功能：透過跳出視窗新增選項
-function addItemViaPrompt(cat, subCat) {
-    const val = prompt("請輸入新選項內容：");
-    if (!val || !val.trim()) return;
-
-    const cleanVal = val.trim();
-    const arr = subCat ? appData[cat][subCat] : appData[cat];
-
-    if (arr.includes(cleanVal)) {
-        alert("這個選項已經存在囉！");
-        return;
-    }
-
-    if (subCat) appData[cat][subCat].push(cleanVal);
-    else appData[cat].push(cleanVal);
+    // 提示框不顯示 A/B 代號，只顯示目前乾淨的名稱，讓使用者輸入新的
+    const cleanName = cleanTitle(oldKey); 
     
-    saveData(appData);
-    renderApp();
-    
-    // 自動選中剛剛新增的項目
-    setTimeout(() => {
-        const selectId = `select-${cat}-${subCat || 'main'}`;
-        const select = document.getElementById(selectId);
-        if (select) select.value = cleanVal;
-    }, 50);
-}
+    const result = await openUniversalModal({
+        title: '修改標題',
+        desc: '請輸入新的標題名稱',
+        defaultValue: cleanName,
+        showDelete: false
+    });
 
-// 功能：長按輸入框觸發刪除選單
-function showDeleteMenu(cat, subCat, currentValue) {
-    const arr = subCat ? appData[cat][subCat] : appData[cat];
-    
-    // 如果輸入框有值，優先詢問是否刪除該值
-    let defaultText = currentValue && arr.includes(currentValue) ? currentValue : "";
-    
-    const target = prompt(`【刪除模式】\n請輸入要刪除的選項完整名稱：\n(目前清單：${arr.join(', ')})`, defaultText);
-    
-    if (!target) return;
+    if (result.action === 'confirm' && result.value) {
+        const newName = result.value;
+        if (newName === cleanName) return;
 
-    const idx = arr.indexOf(target);
-    if (idx > -1) {
-        if (confirm(`確定要刪除「${target}」嗎？`)) {
-            arr.splice(idx, 1);
-            saveData(appData);
-            renderApp();
+        // 更新資料結構
+        if (subCat) {
+            const items = appData[cat][subCat];
+            delete appData[cat][subCat];
+            appData[cat][newName] = items; // 直接用新名，不用管代號
+        } else {
+            const content = appData[cat];
+            delete appData[cat];
+            appData[newName] = content;
         }
-    } else {
-        alert("找不到該選項，請確認文字完全一致。");
+        saveData(appData);
+        renderApp();
+    }
+}
+
+// 4. 新增選項 (點擊 +)
+async function addItemViaPrompt(cat, subCat) {
+    const result = await openUniversalModal({
+        title: '新增選項',
+        desc: '',
+        defaultValue: '',
+        showDelete: false
+    });
+
+    if (result.action === 'confirm' && result.value) {
+        const cleanVal = result.value;
+        const arr = subCat ? appData[cat][subCat] : appData[cat];
+
+        if (arr.includes(cleanVal)) {
+            alert("這個選項已經存在囉！");
+            return;
+        }
+
+        if (subCat) appData[cat][subCat].push(cleanVal);
+        else appData[cat].push(cleanVal);
+        
+        saveData(appData);
+        renderApp();
+        
+        // 自動選中
+        setTimeout(() => {
+            const selectId = `select-${cat}-${subCat || 'main'}`;
+            const select = document.getElementById(selectId);
+            if (select) select.value = cleanVal;
+        }, 50);
+    }
+}
+
+// 5. 編輯或刪除選項 (長按選單)
+async function showDeleteMenu(cat, subCat, currentValue) {
+    if (!currentValue) return;
+
+    const arr = subCat ? appData[cat][subCat] : appData[cat];
+    const idx = arr.indexOf(currentValue);
+
+    if (idx === -1) return; // 找不到該值
+
+    const result = await openUniversalModal({
+        title: '編輯選項',
+        desc: '您可以修改內容，或點擊左下角刪除',
+        defaultValue: currentValue,
+        showDelete: true // 顯示刪除按鈕
+    });
+
+    if (result.action === 'delete') {
+        arr.splice(idx, 1);
+        saveData(appData);
+        renderApp();
+    } 
+    else if (result.action === 'confirm' && result.value) {
+        // 修改內容 (原地替換)
+        arr[idx] = result.value;
+        saveData(appData);
+        renderApp();
+        
+        // 重新選中修改後的內容
+        setTimeout(() => {
+            const selectId = `select-${cat}-${subCat || 'main'}`;
+            const select = document.getElementById(selectId);
+            if (select) select.value = result.value;
+        }, 50);
     }
 }
 
@@ -189,6 +269,7 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
 
     currentSelection = {};
     const promptParts = [];
+    const displayList = []; // 用於顯示在畫面上
 
     // 遍歷資料
     for (const [cat, content] of Object.entries(appData)) {
@@ -198,15 +279,14 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
             const select = document.getElementById(selectId);
             let val = select.value;
 
-            // 邏輯：如果使用者選的是空值 (隨機)，則隨機抽取
             if (!val) {
                 val = content[Math.floor(Math.random() * content.length)];
-                // 這裡不自動填回 Select，保持 "-- 隨機 --" 的狀態，或者你可以選擇填回
-                // select.value = val; 
             }
             
-            currentSelection[cleanTitle(cat)] = val;
-            promptParts.push(`${cleanTitle(cat)}: ${val}`);
+            const title = cleanTitle(cat);
+            currentSelection[title] = val;
+            promptParts.push(`${title}: ${val}`);
+            displayList.push(`<b>${title}</b>: ${val}`);
 
         } else {
             // 巢狀結構
@@ -219,8 +299,10 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
                     val = items[Math.floor(Math.random() * items.length)];
                 }
 
-                currentSelection[`${cleanTitle(subCat)}`] = val;
-                promptParts.push(`${cleanTitle(subCat)}: ${val}`);
+                const title = cleanTitle(subCat);
+                currentSelection[title] = val;
+                promptParts.push(`${title}: ${val}`);
+                displayList.push(`<b>${title}</b>: ${val}`);
             }
         }
     }
@@ -235,27 +317,49 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
     storyContent.innerHTML = '';
     resultArea.scrollIntoView({ behavior: 'smooth' });
 
+    // 新的詳細 Prompt
     const prompt = `
-    你是一個專業編劇。請使用以下設定寫一個故事大綱：
+    你是一個專業編劇顧問。請根據以下「隨機抽選的故事元素」，協助我發展一個完整的故事企劃。
+    
+    【抽選元素清單】：
     ${promptParts.join('\n')}
 
-    請嚴格遵守 JSON 格式回傳：
+    請嚴格依照以下 JSON 格式回傳內容（不要使用 Markdown 標示 json）：
     {
-        "story_outline": "800字左右的故事大綱...",
-        "analysis": "針對此設定的優缺點分析..."
+        "settings_list": "請整理出一份條列式清單，包含所有標題與對應選項（例如：主角-男性、工作-警察...）。",
+        "story_circle": "請使用「Dan Harmon 故事圈 (Story Circle)」理論，寫出約 300 字的角色旅程基本設定（1.舒適圈 -> 2.渴望 -> 3.進入陌生世界 -> 4.適應 -> 5.得到 -> 6.代價 -> 7.回歸 -> 8.改變）。",
+        "story_outline": "請根據上述設定，撰寫約 600 字的詳細劇情大綱，需有具體的起承轉合與高潮。",
+        "analysis": "請針對這個隨機組合進行優劣分析：哪裡最有張力？哪裡邏輯可能會有衝突？給予編劇建議。"
     }
     `;
 
     try {
         const data = await generateStory(prompt);
-        generatedResult = data;
+        generatedResult = {
+            story_outline: data.story_outline, // 為了相容儲存功能
+            analysis: data.analysis,
+            ...data
+        };
+        
         loading.style.display = 'none';
+        
+        // 渲染四個區塊
         storyContent.innerHTML = `
-            <h3>📖 故事大綱</h3>
-            <p>${data.story_outline.replace(/\n/g, '<br>')}</p>
+            <div style="background:#f0f2f5; padding:15px; border-radius:8px; margin-bottom:15px; font-size:0.9rem;">
+                <h4 style="margin-top:0;">📋 抽選清單</h4>
+                <p>${data.settings_list || displayList.join(' / ')}</p>
+            </div>
+
+            <h3>⭕ 故事圈設定 (300字)</h3>
+            <p>${(data.story_circle || '').replace(/\n/g, '<br>')}</p>
             <hr>
-            <h3>📊 優缺點分析</h3>
-            <p>${data.analysis.replace(/\n/g, '<br>')}</p>
+
+            <h3>📖 劇情大綱 (600字)</h3>
+            <p>${(data.story_outline || '').replace(/\n/g, '<br>')}</p>
+            <hr>
+
+            <h3>📊 優劣分析與建議</h3>
+            <p>${(data.analysis || '').replace(/\n/g, '<br>')}</p>
         `;
     } catch (e) {
         loading.style.display = 'none';
