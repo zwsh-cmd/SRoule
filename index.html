@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Script Roule</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+    <header>
+        <h1>Script Roule</h1>
+        <div>
+            <button id="btn-history" class="secondary">歷史</button>
+            <button id="btn-settings">設定</button>
+        </div>
+    </header>
+
+    <div id="main-view">
+        <div id="categories-container"></div>
+    </div>
+
+    <div id="result-area">
+        <h2>生成結果</h2>
+        <div id="loading" style="display:none;">AI 正在寫作中... (請稍候)</div>
+        <div id="story-content"></div>
+        <div style="margin-top: 20px; display:flex; gap:10px;">
+            <button id="btn-save" class="secondary">儲存結果</button>
+            <button onclick="location.reload()" class="secondary">清除重來</button>
+        </div>
+    </div>
+
+    <div id="history-view" style="display:none;">
+        <h2>歷史紀錄</h2>
+        <button id="btn-back-home" class="secondary">返回首頁</button>
+        <div id="history-list"></div>
+    </div>
+
+    <button id="btn-generate" class="fab">🎲</button>
+
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <h3>設定 Gemini API Key</h3>
+            <p style="font-size:0.8rem; color:#666;">Key 僅儲存於您的瀏覽器，不會上傳。</p>
+            <input type="password" id="api-key-input" placeholder="貼上你的 API Key">
+            <div style="text-align: right; margin-top: 10px;">
+                <button id="btn-close-settings" class="secondary">取消</button>
+                <button id="btn-save-key">儲存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="api.js"></script>
+    <script src="main.js"></script>
+    <script>
+        // 註冊 Service Worker (PWA 必備)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
