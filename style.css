@@ -1,0 +1,139 @@
+/* style.css */
+:root {
+    --primary-color: #4a90e2;
+    --bg-color: #f5f7fa;
+    --card-bg: #ffffff;
+    --text-color: #333333;
+    --highlight-color: #ffeb3b;
+    --border-radius: 12px;
+}
+
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    padding: 20px;
+    padding-bottom: 80px; /* 為了底部按鈕 */
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+h1 { font-size: 1.5rem; margin: 0; }
+h2 { font-size: 1.2rem; border-left: 4px solid var(--primary-color); padding-left: 10px; margin-top: 20px;}
+h3 { font-size: 1rem; color: #666; margin-top: 15px; cursor: pointer; }
+h3:active { opacity: 0.5; } /* 長按回饋 */
+
+button {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+button.secondary {
+    background-color: #ddd;
+    color: #333;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-content {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--border-radius);
+    width: 90%;
+    max-width: 400px;
+}
+input[type="password"], input[type="text"] {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    box-sizing: border-box;
+}
+
+/* List Styles */
+.category-box {
+    background: var(--card-bg);
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.tag-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.tag {
+    background: #eef;
+    padding: 5px 10px;
+    border-radius: 15px;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+.tag.highlight {
+    background: var(--highlight-color);
+    font-weight: bold;
+    border: 2px solid #fbc02d;
+    transform: scale(1.1);
+}
+
+/* Result Area */
+#result-area {
+    margin-top: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: var(--border-radius);
+    display: none; /* 預設隱藏 */
+}
+
+/* History */
+.history-item {
+    background: white;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    border: 1px solid #eee;
+}
+.history-detail {
+    display: none;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #ccc;
+}
+
+/* Floating Action Button for Generate */
+.fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--primary-color);
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    color: white;
+    border: none;
+}
