@@ -12,7 +12,7 @@ async function generateStory(prompt) {
         throw new Error("NO_KEY"); // 拋出錯誤讓 main.js 處理
     }
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-001:generateContent?key=${apiKey}`;
 
     const requestBody = {
         contents: [{
