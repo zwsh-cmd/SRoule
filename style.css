@@ -1,10 +1,16 @@
-/* style.css */
+/* style.css - 莫蘭迪色系與下拉選單版 */
 :root {
-    --primary-color: #4a90e2;
-    --bg-color: #f5f7fa;
-    --card-bg: #ffffff;
-    --text-color: #333333;
-    --highlight-color: #ffeb3b;
+    /* 莫蘭迪色票 (Morandi Palette) */
+    --bg-color: #F0F2F5;           /* 柔和灰白背景 */
+    --card-bg: #FFFFFF;            /* 卡片白 */
+    --primary-color: #8fa3ad;      /* 莫蘭迪藍灰 (按鈕/重點) */
+    --primary-hover: #768a94;      /* 深一點的藍灰 */
+    --text-color: #5e6b75;         /* 深灰文字，不刺眼 */
+    --accent-color: #bfaea8;       /* 莫蘭迪粉 (裝飾/強調) */
+    --border-color: #d1d9e0;       /* 柔和邊框 */
+    --header-bar-bg: #e3e8eb;      /* 大分類標題底色 */
+    --highlight-bg: #dbe4e8;       /* 被選中的選項背景 */
+    
     --border-radius: 12px;
 }
 
@@ -14,126 +20,141 @@ body {
     color: var(--text-color);
     margin: 0;
     padding: 20px;
-    padding-bottom: 80px; /* 為了底部按鈕 */
+    padding-bottom: 100px;
 }
 
 header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
-h1 { font-size: 1.5rem; margin: 0; }
-h2 { font-size: 1.2rem; border-left: 4px solid var(--primary-color); padding-left: 10px; margin-top: 20px;}
-h3 { font-size: 1rem; color: #666; margin-top: 15px; cursor: pointer; }
-h3:active { opacity: 0.5; } /* 長按回饋 */
+h1 { font-size: 1.6rem; color: var(--text-color); margin: 0; font-weight: 600; }
 
+/* 按鈕樣式 (莫蘭迪風格) */
 button {
     background-color: var(--primary-color);
     color: white;
     border: none;
-    padding: 10px 15px;
-    border-radius: 8px;
+    padding: 10px 18px;
+    border-radius: 20px; /* 圓潤一點 */
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    transition: background 0.3s;
 }
+button:hover { background-color: var(--primary-hover); }
 
 button.secondary {
-    background-color: #ddd;
-    color: #333;
+    background-color: #e0e0e0;
+    color: #666;
 }
 
-/* Modal */
-.modal {
-    display: none;
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5);
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-.modal-content {
-    background: var(--card-bg);
-    padding: 20px;
-    border-radius: var(--border-radius);
-    width: 90%;
-    max-width: 400px;
-}
-input[type="password"], input[type="text"] {
-    width: 100%;
-    padding: 10px;
-    margin: 10px 0;
-    box-sizing: border-box;
+button.icon-btn {
+    background: transparent;
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    padding: 5px 10px;
+    margin-left: 5px;
 }
 
-/* List Styles */
+/* 卡片容器 */
 .category-box {
     background: var(--card-bg);
-    padding: 15px;
-    margin-bottom: 15px;
+    padding: 0 0 20px 0; /* 上方 padding 歸零，給標題條用 */
+    margin-bottom: 20px;
     border-radius: var(--border-radius);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.03); /* 極淡陰影 */
+    overflow: hidden; /* 讓標題條圓角不跑出去 */
 }
-.tag-container {
+
+/* 大分類標題 (橫條底色) */
+.category-header {
+    background-color: var(--header-bar-bg);
+    padding: 12px 20px;
+    margin: 0 0 15px 0;
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: var(--text-color);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+    cursor: pointer; /* 支援長按 */
+}
+
+.sub-category-row {
+    padding: 8px 20px;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.sub-title {
+    font-size: 0.95rem;
+    color: #888;
+    margin-bottom: 5px;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* 下拉選單樣式 */
+.select-wrapper {
+    display: flex;
+    align-items: center;
     gap: 8px;
 }
-.tag {
-    background: #eef;
-    padding: 5px 10px;
-    border-radius: 15px;
-    font-size: 0.9rem;
-    transition: all 0.3s;
-}
-.tag.highlight {
-    background: var(--highlight-color);
-    font-weight: bold;
-    border: 2px solid #fbc02d;
-    transform: scale(1.1);
+
+select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: #fff;
+    color: var(--text-color);
+    font-size: 1rem;
+    appearance: none; /* 移除預設醜醜的箭頭 (部分瀏覽器) */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238fa3ad' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
 }
 
-/* Result Area */
-#result-area {
-    margin-top: 20px;
-    padding: 20px;
-    background: white;
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+/* Modal & Result Area (維持原樣，微調圓角) */
+.modal-content, #result-area {
     border-radius: var(--border-radius);
-    display: none; /* 預設隱藏 */
+    background: var(--card-bg);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
 }
+#result-area { padding: 25px; margin-top: 20px; display: none; }
 
-/* History */
-.history-item {
-    background: white;
-    padding: 15px;
-    margin-bottom: 10px;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    border: 1px solid #eee;
-}
-.history-detail {
-    display: none;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed #ccc;
-}
-
-/* Floating Action Button for Generate */
+/* 浮動按鈕 (單色 Icon) */
 .fab {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: 25px;
+    right: 25px;
     background: var(--primary-color);
-    width: 60px;
-    height: 60px;
+    width: 65px;
+    height: 65px;
     border-radius: 50%;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    box-shadow: 0 6px 15px rgba(143, 163, 173, 0.4);
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 24px;
     color: white;
     border: none;
+    transition: transform 0.2s;
+}
+.fab:active { transform: scale(0.95); }
+.fab svg { width: 32px; height: 32px; fill: white; }
+
+/* 歷史紀錄列表 */
+.history-item {
+    background: var(--card-bg);
+    padding: 15px;
+    margin-bottom: 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
 }
