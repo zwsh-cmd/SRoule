@@ -162,25 +162,34 @@ function addLongPressEvent(element, callback) {
 // 3. 修改分類標題 (長按標題)
 async function renameCategory(cat, subCat) {
     const oldKey = subCat || cat;
-    // 提示框不顯示 A/B 代號，只顯示目前乾淨的名稱，讓使用者輸入新的
     const cleanName = cleanTitle(oldKey); 
     
     const result = await openUniversalModal({
-        title: '修改標題',
-        desc: '請輸入新的標題名稱',
+        title: '編輯標題',
+        desc: '請修改標題名稱，或點擊左下角刪除此分類',
         defaultValue: cleanName,
-        showDelete: false
+        showDelete: true // 開啟刪除按鈕
     });
 
-    if (result.action === 'confirm' && result.value) {
+    if (result.action === 'delete') {
+        // 刪除邏輯
+        if (subCat) {
+            delete appData[cat][subCat];
+        } else {
+            delete appData[cat];
+        }
+        saveData(appData);
+        renderApp();
+    }
+    else if (result.action === 'confirm' && result.value) {
+        // 修改邏輯
         const newName = result.value;
         if (newName === cleanName) return;
 
-        // 更新資料結構
         if (subCat) {
             const items = appData[cat][subCat];
             delete appData[cat][subCat];
-            appData[cat][newName] = items; // 直接用新名，不用管代號
+            appData[cat][newName] = items;
         } else {
             const content = appData[cat];
             delete appData[cat];
@@ -286,7 +295,7 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
             const title = cleanTitle(cat);
             currentSelection[title] = val;
             promptParts.push(`${title}: ${val}`);
-            displayList.push(`<b>${title}</b>: ${val}`);
+            displayList.push(`<b>${title}</b>：${val}`);
 
         } else {
             // 巢狀結構
@@ -302,7 +311,7 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
                 const title = cleanTitle(subCat);
                 currentSelection[title] = val;
                 promptParts.push(`${title}: ${val}`);
-                displayList.push(`<b>${title}</b>: ${val}`);
+                displayList.push(`<b>${title}</b>：${val}`);
             }
         }
     }
@@ -317,7 +326,7 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
     storyContent.innerHTML = '';
     resultArea.scrollIntoView({ behavior: 'smooth' });
 
-    // 新的詳細 Prompt
+    // 新的詳細 Prompt (要求 AI 幫忙排版)
     const prompt = `
     你是一個專業編劇顧問。請根據以下「隨機抽選的故事元素」，協助我發展一個完整的故事企劃。
     
@@ -326,35 +335,39 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
 
     請嚴格依照以下 JSON 格式回傳內容（不要使用 Markdown 標示 json）：
     {
-        "settings_list": "請整理出一份條列式清單，包含所有標題與對應選項（例如：主角-男性、工作-警察...）。",
-        "story_circle": "請使用「Dan Harmon 故事圈 (Story Circle)」理論，寫出約 300 字的角色旅程基本設定（1.舒適圈 -> 2.渴望 -> 3.進入陌生世界 -> 4.適應 -> 5.得到 -> 6.代價 -> 7.回歸 -> 8.改變）。",
-        "story_outline": "請根據上述設定，撰寫約 600 字的詳細劇情大綱，需有具體的起承轉合與高潮。",
-        "analysis": "請針對這個隨機組合進行優劣分析：哪裡最有張力？哪裡邏輯可能會有衝突？給予編劇建議。"
+        "settings_list": "請整理出一份條列式清單，包含所有標題與對應選項，並且每一個選項都要換行（例如：主角-男性\\n工作-警察...）。",
+        "story_circle": "請使用「Dan Harmon 故事圈 (Story Circle)」理論，寫出角色旅程基本設定。請務必將 8 個步驟（1.舒適圈 -> 2.渴望 -> 3.進入陌生世界 -> 4.適應 -> 5.得到 -> 6.代價 -> 7.回歸 -> 8.改變）分段撰寫，每一點之間要換行。",
+        "story_outline": "請根據上述設定，撰寫約 600 字的詳細劇情大綱，需有具體的起承轉合與高潮，並適當分段。",
+        "analysis": "請針對這個隨機組合進行優劣分析，包含最有張力處與邏輯衝突點，並分點列出。"
     }
     `;
 
     try {
         const data = await generateStory(prompt);
+        // 將畫面上生成的 displayList 也轉成換行的 HTML，若 AI 回傳空則使用它
+        const fallbackList = displayList.join('<br>');
+
         generatedResult = {
-            story_outline: data.story_outline, // 為了相容儲存功能
-            analysis: data.analysis,
-            ...data
+            settings_list: data.settings_list || fallbackList,
+            story_circle: data.story_circle,
+            story_outline: data.story_outline, 
+            analysis: data.analysis
         };
         
         loading.style.display = 'none';
         
-        // 渲染四個區塊
+        // 渲染四個區塊 (使用 replace 確保換行顯示)
         storyContent.innerHTML = `
-            <div style="background:#f0f2f5; padding:15px; border-radius:8px; margin-bottom:15px; font-size:0.9rem;">
+            <div style="background:#f0f2f5; padding:15px; border-radius:8px; margin-bottom:15px; font-size:0.95rem; line-height:1.6;">
                 <h4 style="margin-top:0;">📋 抽選清單</h4>
-                <p>${data.settings_list || displayList.join(' / ')}</p>
+                <div>${(generatedResult.settings_list).replace(/\n/g, '<br>')}</div>
             </div>
 
-            <h3>⭕ 故事圈設定 (300字)</h3>
+            <h3>⭕ 故事圈設定</h3>
             <p>${(data.story_circle || '').replace(/\n/g, '<br>')}</p>
             <hr>
 
-            <h3>📖 劇情大綱 (600字)</h3>
+            <h3>📖 劇情大綱</h3>
             <p>${(data.story_outline || '').replace(/\n/g, '<br>')}</p>
             <hr>
 
@@ -367,19 +380,21 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
     }
 });
 
-// --- 儲存與其他功能 (維持不變) ---
+// --- 儲存與其他功能 ---
 document.getElementById('btn-save').addEventListener('click', () => {
     if (!generatedResult) return;
     const title = prompt("請為這個故事取個名字：", "未命名故事");
     if (!title) return;
 
     const savedStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
+    // 儲存所有四個區塊
     const newStory = {
         id: Date.now(),
         title: title,
         timestamp: new Date().toLocaleString(),
-        options: currentSelection,
-        content: generatedResult.story_outline,
+        settings_list: generatedResult.settings_list,
+        story_circle: generatedResult.story_circle,
+        story_outline: generatedResult.story_outline,
         analysis: generatedResult.analysis
     };
     savedStories.unshift(newStory);
@@ -411,11 +426,7 @@ document.getElementById('btn-history').onclick = () => {
     renderHistory();
 };
 
-document.getElementById('btn-back-home').onclick = () => {
-    historyView.style.display = 'none';
-    mainView.style.display = 'block';
-    document.getElementById('btn-generate').style.display = 'flex';
-};
+// 注意：移除了 btn-back-home 的監聽器，因為按鈕已經在 HTML 移除了
 
 function renderHistory() {
     const stories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
@@ -423,17 +434,33 @@ function renderHistory() {
     stories.forEach(story => {
         const item = document.createElement('div');
         item.className = 'history-item';
+        
+        // 相容舊資料檢查 (舊資料沒有 settings_list 等欄位)
+        const listContent = story.settings_list || '舊資料無詳細清單';
+        const circleContent = story.story_circle || '舊資料無故事圈';
+        const outlineContent = story.story_outline || story.content || ''; // 相容舊版 content
+        const analysisContent = story.analysis || '無分析資料';
+
         item.innerHTML = `
             <div style="font-weight:bold; font-size:1.1rem; color:#5e6b75;">${story.title}</div>
             <div style="font-size:0.8rem; color:#999; margin-bottom:8px;">${story.timestamp}</div>
-            <div class="history-detail" id="detail-${story.id}" style="display:none; border-top:1px solid #eee; padding-top:10px; margin-top:10px;">
-                <p><strong>設定：</strong><br>${Object.entries(story.options).map(([k,v]) => `${k}: ${v}`).join(' / ')}</p>
-                <p><strong>大綱：</strong><br>${story.content.replace(/\n/g, '<br>')}</p>
-                <button onclick="replyStory(${story.id})" class="secondary" style="margin-top:10px;">延伸對話</button>
+            <div class="history-detail" style="display:none; border-top:1px solid #eee; padding-top:10px; margin-top:10px; font-size:0.95rem; line-height:1.5;">
+                
+                <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:10px;">
+                    <strong>📋 設定清單：</strong><br>
+                    ${listContent.replace(/\n/g, '<br>')}
+                </div>
+
+                <p><strong>⭕ 故事圈：</strong><br>${circleContent.replace(/\n/g, '<br>')}</p>
+                <hr style="border:0; border-top:1px dashed #ddd;">
+                <p><strong>📖 大綱：</strong><br>${outlineContent.replace(/\n/g, '<br>')}</p>
+                <hr style="border:0; border-top:1px dashed #ddd;">
+                <p><strong>📊 分析：</strong><br>${analysisContent.replace(/\n/g, '<br>')}</p>
             </div>
         `;
+        
+        // 點擊卡片展開/收合
         item.onclick = (e) => {
-            if(e.target.tagName==='BUTTON' || e.target.tagName==='INPUT') return;
             const detail = item.querySelector('.history-detail');
             detail.style.display = detail.style.display === 'block' ? 'none' : 'block';
         };
