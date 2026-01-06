@@ -39,7 +39,14 @@ header {
     z-index: 100;
 }
 
-h1 { font-size: 1.5rem; color: white; margin: 0; font-weight: 600; letter-spacing: 1px; }
+h1 { 
+    font-family: Arial, sans-serif;
+    font-size: 1.5rem; 
+    color: white; 
+    margin: 0; 
+    font-weight: 700; 
+    letter-spacing: 2px; 
+}
 
 /* 按鈕樣式 (莫蘭迪風格) */
 button {
