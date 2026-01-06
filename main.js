@@ -462,44 +462,92 @@ document.getElementById('btn-history').onclick = () => {
     renderHistory();
 };
 
-// 注意：移除了 btn-back-home 的監聽器，因為按鈕已經在 HTML 移除了
+// 重新啟用返回按鈕 (包含雙層邏輯：文件 -> 清單 -> 首頁)
+const btnBackHome = document.getElementById('btn-back-home');
+if (btnBackHome) {
+    btnBackHome.onclick = () => {
+        // 檢查是否有展開的文件
+        const openDetail = document.querySelector('.history-detail[style*="display: block"]');
+        
+        if (openDetail) {
+            // 情境 1: 如果有文件展開，就「收合文件」(回到清單)
+            document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
+            btnBackHome.textContent = '返回首頁';
+            // 稍微捲回頂部或保持位置
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        } else {
+            // 情境 2: 如果沒有文件展開，就「回到首頁」
+            historyView.style.display = 'none';
+            mainView.style.display = 'block';
+            // 確保生成按鈕和結果區塊的顯示狀態正確
+            document.getElementById('btn-generate').style.display = 'flex';
+            if (generatedResult) {
+                document.getElementById('result-area').style.display = 'block';
+            }
+        }
+    };
+}
 
 function renderHistory() {
     const stories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
     historyList.innerHTML = '';
+    
+    // 進入歷史紀錄時，預設顯示「返回首頁」
+    const btnBack = document.getElementById('btn-back-home');
+    if(btnBack) btnBack.textContent = '返回首頁';
+
     stories.forEach(story => {
         const item = document.createElement('div');
         item.className = 'history-item';
         
-        // 相容舊資料檢查 (舊資料沒有 settings_list 等欄位)
         const listContent = story.settings_list || '舊資料無詳細清單';
         const circleContent = story.story_circle || '舊資料無故事圈';
-        const outlineContent = story.story_outline || story.content || ''; // 相容舊版 content
+        const outlineContent = story.story_outline || story.content || ''; 
         const analysisContent = story.analysis || '無分析資料';
 
+        // 將標題區塊獨立出來，加上 click 事件
         item.innerHTML = `
-            <div style="font-weight:bold; font-size:1.1rem; color:#5e6b75;">${story.title}</div>
-            <div style="font-size:0.8rem; color:#999; margin-bottom:8px;">${story.timestamp}</div>
+            <div class="history-header-area" style="cursor:pointer;">
+                <div style="font-weight:bold; font-size:1.1rem; color:#5e6b75;">${story.title}</div>
+                <div style="font-size:0.8rem; color:#999; margin-bottom:8px;">${story.timestamp}</div>
+            </div>
             <div class="history-detail" style="display:none; border-top:1px solid #eee; padding-top:10px; margin-top:10px; font-size:0.95rem; line-height:1.5;">
-                
                 <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:10px;">
                     <strong>📋 設定清單：</strong><br>
                     ${listContent.replace(/\n/g, '<br>')}
                 </div>
-
                 <p><strong>⭕ 故事圈：</strong><br>${circleContent.replace(/\n/g, '<br>')}</p>
                 <hr style="border:0; border-top:1px dashed #ddd;">
                 <p><strong>📖 大綱：</strong><br>${outlineContent.replace(/\n/g, '<br>')}</p>
                 <hr style="border:0; border-top:1px dashed #ddd;">
                 <p><strong>📊 分析：</strong><br>${analysisContent.replace(/\n/g, '<br>')}</p>
+                <div style="text-align:center; margin-top:20px; color:#888; font-size:0.8rem;">(已到底部)</div>
             </div>
         `;
         
-        // 點擊卡片展開/收合
-        item.onclick = (e) => {
-            const detail = item.querySelector('.history-detail');
-            detail.style.display = detail.style.display === 'block' ? 'none' : 'block';
+        // 只有點擊「標題區域」才觸發展開/收合 (避免選取內文時誤觸)
+        const headerArea = item.querySelector('.history-header-area');
+        const detail = item.querySelector('.history-detail');
+
+        headerArea.onclick = (e) => {
+            const isOpening = detail.style.display !== 'block';
+            
+            // UX 優化：開啟一個時，自動收合其他所有項目
+            document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
+            
+            if (isOpening) {
+                detail.style.display = 'block';
+                // 當有文件展開時，按鈕變成「返回清單」
+                if(btnBack) btnBack.textContent = '返回清單';
+                // 自動捲動到該項目
+                setTimeout(() => item.scrollIntoView({behavior: "smooth", block: "start"}), 100);
+            } else {
+                detail.style.display = 'none';
+                // 全部收合時，按鈕變回「返回首頁」
+                if(btnBack) btnBack.textContent = '返回首頁';
+            }
         };
+        
         historyList.appendChild(item);
     });
 }
