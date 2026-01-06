@@ -27,10 +27,23 @@ const defaultData = {
     ]
 };
 
-// 初始化資料：如果有存檔就讀取，沒有就用預設值
+// 初始化資料：如果有存檔就讀取，但會檢查結構版本並自動修復
 function loadData() {
     const saved = localStorage.getItem('script_roule_data');
-    return saved ? JSON.parse(saved) : defaultData;
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        
+        // [自動修復] 檢查 "C (觸發事件)" 是否為舊的物件格式
+        // 如果它不是陣列 (Array)，代表是舊版，強制用新的 defaultData 覆蓋它
+        if (parsed["C (觸發事件)"] && !Array.isArray(parsed["C (觸發事件)"])) {
+            console.log("偵測到舊版資料結構，正在自動修復...");
+            parsed["C (觸發事件)"] = defaultData["C (觸發事件)"];
+            saveData(parsed); // 存回修復後的資料
+        }
+        
+        return parsed;
+    }
+    return defaultData;
 }
 
 // 儲存資料回 localStorage
