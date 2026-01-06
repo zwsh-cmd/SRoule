@@ -42,6 +42,35 @@ function renderApp() {
         }
         container.appendChild(box);
     }
+
+    // --- 新增：補充條件區塊 ---
+    const extraBox = document.createElement('div');
+    extraBox.className = 'category-box';
+    
+    const header = document.createElement('div');
+    header.className = 'category-header';
+    header.textContent = '補充條件';
+    extraBox.appendChild(header);
+
+    const row = document.createElement('div');
+    row.className = 'sub-category-row';
+
+    const textarea = document.createElement('textarea');
+    textarea.id = 'extra-input';
+    textarea.placeholder = '請輸入其他補充條件 (500字以內)...';
+    textarea.maxLength = 500;
+    textarea.style.width = '100%';
+    textarea.style.height = '100px';
+    textarea.style.padding = '10px';
+    textarea.style.borderRadius = '8px';
+    textarea.style.border = '1px solid var(--border-color)';
+    textarea.style.boxSizing = 'border-box';
+    textarea.style.fontFamily = 'inherit';
+    textarea.style.resize = 'vertical';
+
+    row.appendChild(textarea);
+    extraBox.appendChild(row);
+    container.appendChild(extraBox);
 }
 
 // 3. 渲染下拉選單列 (Select + 新增按鈕)
@@ -314,6 +343,13 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
                 displayList.push(`<b>${title}</b>：${val}`);
             }
         }
+    }
+
+    // 加入補充條件到 Prompt 與顯示列表
+    const extraVal = document.getElementById('extra-input').value.trim();
+    if (extraVal) {
+        promptParts.push(`補充條件: ${extraVal}`);
+        displayList.push(`<b>補充條件</b>：${extraVal}`);
     }
 
     // 呼叫 API
