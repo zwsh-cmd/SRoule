@@ -1,5 +1,5 @@
 // sw.js - 強制介面更新版 (v3)
-const CACHE_NAME = 'script-roule-v5'; // 改成 v5 (強制更新)
+const CACHE_NAME = 'script-roule-v6'; // 改成 v6 (強制更新)
 const urlsToCache = [
   './',
   './index.html',
