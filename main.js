@@ -462,24 +462,30 @@ document.getElementById('btn-history').onclick = () => {
     renderHistory();
 };
 
-// 重新啟用返回按鈕 (包含雙層邏輯：文件 -> 清單 -> 首頁)
+// 重新啟用返回按鈕 (三層式邏輯：詳細內容 -> 歷史清單 -> 首頁)
 const btnBackHome = document.getElementById('btn-back-home');
 if (btnBackHome) {
     btnBackHome.onclick = () => {
-        // 檢查是否有展開的文件
-        const openDetail = document.querySelector('.history-detail[style*="display: block"]');
-        
-        if (openDetail) {
-            // 情境 1: 如果有文件展開，就「收合文件」(回到清單)
+        // 依據按鈕文字判斷目前層級
+        if (btnBackHome.textContent === '返回清單') {
+            // [層級 3 -> 2] 從詳細內容 回到 清單
+            
+            // 1. 顯示所有清單項目 (恢復列表)
+            document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
+            
+            // 2. 收合所有內容細節
             document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
+            
+            // 3. 更新按鈕與視圖
             btnBackHome.textContent = '返回首頁';
-            // 稍微捲回頂部或保持位置
             window.scrollTo({top: 0, behavior: 'smooth'});
+
         } else {
-            // 情境 2: 如果沒有文件展開，就「回到首頁」
+            // [層級 2 -> 1] 從清單 回到 首頁
             historyView.style.display = 'none';
             mainView.style.display = 'block';
-            // 確保生成按鈕和結果區塊的顯示狀態正確
+            
+            // 恢復首頁元件顯示
             document.getElementById('btn-generate').style.display = 'flex';
             if (generatedResult) {
                 document.getElementById('result-area').style.display = 'block';
@@ -505,7 +511,6 @@ function renderHistory() {
         const outlineContent = story.story_outline || story.content || ''; 
         const analysisContent = story.analysis || '無分析資料';
 
-        // 將標題區塊獨立出來，加上 click 事件
         item.innerHTML = `
             <div class="history-header-area" style="cursor:pointer;">
                 <div style="font-weight:bold; font-size:1.1rem; color:#5e6b75;">${story.title}</div>
@@ -525,27 +530,24 @@ function renderHistory() {
             </div>
         `;
         
-        // 只有點擊「標題區域」才觸發展開/收合 (避免選取內文時誤觸)
         const headerArea = item.querySelector('.history-header-area');
         const detail = item.querySelector('.history-detail');
 
-        headerArea.onclick = (e) => {
-            const isOpening = detail.style.display !== 'block';
+        headerArea.onclick = () => {
+            // [層級 2 -> 3] 進入詳細內容模式
             
-            // UX 優化：開啟一個時，自動收合其他所有項目
-            document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
+            // 1. 隱藏「所有」歷史項目卡片 (讓畫面變乾淨)
+            document.querySelectorAll('.history-item').forEach(el => el.style.display = 'none');
             
-            if (isOpening) {
-                detail.style.display = 'block';
-                // 當有文件展開時，按鈕變成「返回清單」
-                if(btnBack) btnBack.textContent = '返回清單';
-                // 自動捲動到該項目
-                setTimeout(() => item.scrollIntoView({behavior: "smooth", block: "start"}), 100);
-            } else {
-                detail.style.display = 'none';
-                // 全部收合時，按鈕變回「返回首頁」
-                if(btnBack) btnBack.textContent = '返回首頁';
-            }
+            // 2. 只顯示「自己」這個項目，並展開內容
+            item.style.display = 'block';
+            detail.style.display = 'block';
+            
+            // 3. 更新按鈕為「返回清單」
+            if(btnBack) btnBack.textContent = '返回清單';
+            
+            // 4. 滾動到最上方方便閱讀
+            window.scrollTo({top: 0, behavior: 'smooth'});
         };
         
         historyList.appendChild(item);
