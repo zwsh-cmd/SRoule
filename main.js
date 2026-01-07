@@ -1,10 +1,47 @@
-// main.js - 下拉選單版
+// main.js - 雲端版
 
 let appData = loadData();
 let currentSelection = {};
 let generatedResult = null;
+let currentUser = null; // 當前使用者
+let isCloudMode = false; // 雲端模式狀態
 
 const container = document.getElementById('categories-container');
+
+// 初始化監聽器
+document.addEventListener('DOMContentLoaded', () => {
+    // 綁定登入登出
+    const btnLogin = document.getElementById('btn-login');
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogin) btnLogin.onclick = loginWithGoogle; // 來自 firebase-config.js
+    if (btnLogout) btnLogout.onclick = logout;
+
+    // 監聽 Firebase 狀態
+    if (typeof auth !== 'undefined') {
+        auth.onAuthStateChanged(user => {
+            const userInfo = document.getElementById('user-info');
+            const userAvatar = document.getElementById('user-avatar');
+            
+            if (user) {
+                currentUser = user;
+                isCloudMode = true;
+                console.log("雲端模式:", user.displayName);
+                if (btnLogin) btnLogin.style.display = 'none';
+                if (userInfo) userInfo.style.display = 'flex';
+                if (userAvatar) userAvatar.src = user.photoURL;
+                // 如果目前在歷史頁面，重新整理以讀取雲端資料
+                if (document.getElementById('history-view').style.display === 'block') {
+                    renderHistory();
+                }
+            } else {
+                currentUser = null;
+                isCloudMode = false;
+                if (btnLogin) btnLogin.style.display = 'block';
+                if (userInfo) userInfo.style.display = 'none';
+            }
+        });
+    }
+});
 
 // 1. 小工具：清理標題 (移除 A, B, a, b 符號)
 function cleanTitle(text) {
@@ -438,13 +475,11 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
 });
 
 // --- 儲存與其他功能 ---
-document.getElementById('btn-save').addEventListener('click', () => {
+document.getElementById('btn-save').addEventListener('click', async () => {
     if (!generatedResult) return;
     const title = prompt("請為這個故事取個名字：", "未命名故事");
     if (!title) return;
 
-    const savedStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
-    // 儲存所有四個區塊
     const newStory = {
         id: Date.now(),
         title: title,
@@ -454,9 +489,22 @@ document.getElementById('btn-save').addEventListener('click', () => {
         story_outline: generatedResult.story_outline,
         analysis: generatedResult.analysis
     };
-    savedStories.unshift(newStory);
-    localStorage.setItem('saved_stories', JSON.stringify(savedStories));
-    alert("儲存成功！");
+
+    // 雲端儲存邏輯
+    if (isCloudMode && currentUser) {
+        try {
+            await db.collection('users').doc(currentUser.uid).collection('stories').doc(String(newStory.id)).set(newStory);
+            alert("☁️ 已儲存到雲端！");
+        } catch (e) {
+            alert("雲端儲存失敗：" + e.message);
+        }
+    } else {
+        // 本地儲存邏輯
+        const savedStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
+        savedStories.unshift(newStory);
+        localStorage.setItem('saved_stories', JSON.stringify(savedStories));
+        alert("💾 已儲存到本地！(登入後可存到雲端)");
+    }
 });
 
 const modal = document.getElementById('settings-modal');
@@ -552,13 +600,35 @@ if (btnBackHome) {
     };
 }
 
-function renderHistory() {
-    const stories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
-    historyList.innerHTML = '';
+async function renderHistory() {
+    historyList.innerHTML = '<div style="text-align:center; padding:20px;">載入中...</div>';
     
-    // 進入歷史紀錄時，預設顯示「返回首頁」
     const btnBack = document.getElementById('btn-back-home');
     if(btnBack) btnBack.textContent = '返回首頁';
+
+    let stories = [];
+
+    // 決定讀取來源
+    if (isCloudMode && currentUser) {
+        try {
+            const snapshot = await db.collection('users').doc(currentUser.uid).collection('stories').orderBy('id', 'desc').get();
+            if (!snapshot.empty) {
+                stories = snapshot.docs.map(doc => doc.data());
+            }
+        } catch (e) {
+            historyList.innerHTML = `<div style="color:red">讀取失敗：${e.message}</div>`;
+            return;
+        }
+    } else {
+        stories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
+    }
+
+    historyList.innerHTML = '';
+
+    if (stories.length === 0) {
+        historyList.innerHTML = '<div style="text-align:center; color:#888; margin-top:50px;">這裡空空的 (尚無紀錄)</div>';
+        return;
+    }
 
     stories.forEach(story => {
         const item = document.createElement('div');
@@ -573,11 +643,11 @@ function renderHistory() {
             <div class="history-header-area" style="cursor:pointer;">
                 <div style="font-weight:bold; font-size:1.1rem; color:#5e6b75;">${story.title}</div>
                 <div style="font-size:0.8rem; color:#999; margin-bottom:8px;">${story.timestamp}</div>
+                ${isCloudMode ? '<span style="font-size:0.7rem; background:#4285F4; color:white; padding:2px 5px; border-radius:4px;">Cloud</span>' : ''}
             </div>
             <div class="history-detail" style="display:none; border-top:1px solid #eee; padding-top:10px; margin-top:10px; font-size:0.95rem; line-height:1.5;">
                 <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:10px;">
-                    <strong>📋 設定清單：</strong><br>
-                    ${listContent.replace(/\n/g, '<br>')}
+                    <strong>📋 設定清單：</strong><br>${listContent.replace(/\n/g, '<br>')}
                 </div>
                 <p><strong>⭕ 故事圈：</strong><br>${circleContent.replace(/\n/g, '<br>')}</p>
                 <hr style="border:0; border-top:1px dashed #ddd;">
@@ -588,7 +658,6 @@ function renderHistory() {
                 <button class="copy-btn" style="width:100%; margin:20px 0; background:#8fa3ad; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem;">
                     📋 複製全部內容
                 </button>
-
                 <div style="text-align:center; color:#888; font-size:0.8rem;">(已到底部)</div>
             </div>
         `;
@@ -596,104 +665,53 @@ function renderHistory() {
         const headerArea = item.querySelector('.history-header-area');
         const detail = item.querySelector('.history-detail');
         const copyBtn = item.querySelector('.copy-btn');
-
-        // [新增] 避免長按觸發點擊的旗標
         let isLongPress = false;
 
-        // [修改] 綁定長按事件：支援重新命名與刪除
+        // 刪除邏輯 (包含雲端)
         addLongPressEvent(headerArea, async () => {
             isLongPress = true;
-            
-            // 跳出選項視窗
             const result = await openUniversalModal({
-                title: '編輯標題',
-                desc: '請修改標題名稱，或點擊左下角刪除此紀錄',
+                title: '刪除紀錄',
+                desc: '確定要刪除這筆紀錄嗎？(無法復原)',
                 defaultValue: story.title,
                 showDelete: true
             });
 
             if (result.action === 'delete') {
-                // 執行刪除
-                const currentStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
-                const newStories = currentStories.filter(s => s.id !== story.id);
-                localStorage.setItem('saved_stories', JSON.stringify(newStories));
-                renderHistory(); // 重新渲染列表
-            }
-            else if (result.action === 'confirm' && result.value) {
-                // 執行重新命名
-                const newTitle = result.value.trim();
-                if (newTitle && newTitle !== story.title) {
+                if (isCloudMode && currentUser) {
+                    // 雲端刪除
+                    await db.collection('users').doc(currentUser.uid).collection('stories').doc(String(story.id)).delete();
+                } else {
+                    // 本地刪除
                     const currentStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
-                    // 找到該筆資料並更新
-                    const targetIndex = currentStories.findIndex(s => s.id === story.id);
-                    if (targetIndex !== -1) {
-                        currentStories[targetIndex].title = newTitle;
-                        localStorage.setItem('saved_stories', JSON.stringify(currentStories));
-                        renderHistory();
-                    }
+                    const newStories = currentStories.filter(s => s.id !== story.id);
+                    localStorage.setItem('saved_stories', JSON.stringify(newStories));
                 }
+                renderHistory(); // 重新整理
             }
-
-            // 重置旗標 (延遲一點以避開 click 事件)
             setTimeout(() => { isLongPress = false; }, 300);
         });
 
-        // 綁定複製按鈕事件
+        // 複製按鈕邏輯
         copyBtn.onclick = (e) => {
-            e.stopPropagation(); // 避免觸發收合或其他事件
-            
-            // 組合純文字內容
-            const fullText = 
-`標題：${story.title}
-時間：${story.timestamp}
-
-【設定清單】
-${listContent}
-
-【故事圈】
-${circleContent}
-
-【大綱】
-${outlineContent}
-
-【分析】
-${analysisContent}`;
-
-            // 執行複製
+            e.stopPropagation();
+            const fullText = `標題：${story.title}\n時間：${story.timestamp}\n\n【設定清單】\n${listContent}\n\n【故事圈】\n${circleContent}\n\n【大綱】\n${outlineContent}\n\n【分析】\n${analysisContent}`;
             navigator.clipboard.writeText(fullText).then(() => {
                 const originalText = copyBtn.textContent;
                 copyBtn.textContent = '✅ 已複製！';
-                copyBtn.style.backgroundColor = '#4CAF50'; // 轉為綠色提示
-                setTimeout(() => {
-                    copyBtn.textContent = originalText;
-                    copyBtn.style.backgroundColor = '#8fa3ad'; // 恢復原色
-                }, 2000);
-            }).catch(err => {
-                alert('複製失敗，請手動複製。');
-                console.error(err);
-            });
+                copyBtn.style.backgroundColor = '#4CAF50';
+                setTimeout(() => { copyBtn.textContent = originalText; copyBtn.style.backgroundColor = '#8fa3ad'; }, 2000);
+            }).catch(err => alert('複製失敗'));
         };
 
+        // 點擊展開邏輯
         headerArea.onclick = () => {
-            // [修改] 如果是長按操作，則忽略這次點擊
             if (isLongPress) return;
-
-            // [層級 2 -> 3] 進入詳細內容模式
-            
-            // 新增：加入 #detail 歷史狀態，讓返回鍵能跳回清單 (#history)
             history.pushState({ page: 'detail' }, 'Detail', '#detail');
-
-            // 1. 隱藏「所有」歷史項目卡片 (讓畫面變乾淨)
             document.querySelectorAll('.history-item').forEach(el => el.style.display = 'none');
-            
-            // 2. 只顯示「自己」這個項目，並展開內容
             item.style.display = 'block';
             detail.style.display = 'block';
-            
-            // 3. 更新按鈕為「返回清單」
             if(btnBack) btnBack.textContent = '返回清單';
-            
-            // 4. 滾動到最上方方便閱讀
             window.scrollTo({top: 0, behavior: 'smooth'});
         };
         
