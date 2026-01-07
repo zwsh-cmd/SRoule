@@ -454,7 +454,43 @@ const mainView = document.getElementById('main-view');
 const historyView = document.getElementById('history-view');
 const historyList = document.getElementById('history-list');
 
+// --- 路由與導航控制 (解決手機返回鍵關閉 App 問題) ---
+
+// 定義共用的「回到首頁」函式
+function goHome() {
+    // 1. 切換視圖
+    historyView.style.display = 'none';
+    mainView.style.display = 'block';
+    
+    // 2. 恢復元件
+    document.getElementById('btn-generate').style.display = 'flex';
+    if (generatedResult) {
+        document.getElementById('result-area').style.display = 'block';
+    }
+
+    // 3. 重置歷史清單狀態
+    document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
+    document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
+    
+    // 4. 重置按鈕
+    const btnBack = document.getElementById('btn-back-home');
+    if(btnBack) btnBack.textContent = '返回首頁';
+    window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+// 監聽手機實體返回鍵 (Popstate)
+window.addEventListener('popstate', (event) => {
+    // 如果網址沒有 #history (代表使用者按了返回鍵想回到首頁)，就執行 goHome
+    if (!location.hash) {
+        goHome();
+    }
+});
+
+// 設定「歷史紀錄」按鈕：點擊時加入歷史堆疊 (pushState)
 document.getElementById('btn-history').onclick = () => {
+    // 加入 #history，讓手機返回鍵能運作而不關閉 App
+    history.pushState({ page: 'history' }, 'History', '#history');
+
     mainView.style.display = 'none';
     document.getElementById('result-area').style.display = 'none';
     document.getElementById('btn-generate').style.display = 'none';
@@ -462,27 +498,17 @@ document.getElementById('btn-history').onclick = () => {
     renderHistory();
 };
 
-// 重新啟用返回按鈕 (修改為：統一直接返回首頁)
+// 設定 App 內「返回」按鈕：呼叫瀏覽器上一頁 (這會觸發上面的 popstate)
 const btnBackHome = document.getElementById('btn-back-home');
 if (btnBackHome) {
     btnBackHome.onclick = () => {
-        // 1. 切換視圖回首頁
-        historyView.style.display = 'none';
-        mainView.style.display = 'block';
-        
-        // 2. 恢復首頁元件顯示
-        document.getElementById('btn-generate').style.display = 'flex';
-        if (generatedResult) {
-            document.getElementById('result-area').style.display = 'block';
+        // 如果目前在歷史頁 (網址有 #history)，執行上一頁會觸發 popstate -> goHome
+        if (location.hash === '#history') {
+            history.back();
+        } else {
+            // 保險起見，若網址狀態不對，直接執行回首頁
+            goHome();
         }
-
-        // 3. 重置歷史清單狀態 (確保下次進來時是完整的列表，而不是卡在詳情頁)
-        document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
-        document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
-        
-        // 確保按鈕文字重置
-        btnBackHome.textContent = '返回首頁';
-        window.scrollTo({top: 0, behavior: 'smooth'});
     };
 }
 
