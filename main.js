@@ -580,6 +580,12 @@ window.addEventListener('popstate', (event) => {
 const btnHistory = document.getElementById('btn-history');
 if (btnHistory) {
     btnHistory.onclick = () => {
+        // [修正] 關鍵：如果已經在歷史頁面，就不重複加入堆疊，避免返回鍵卡住
+        if (location.hash === '#history') {
+            renderHistory(); 
+            return;
+        }
+
         history.pushState({ page: 'history' }, 'History', '#history');
 
         if(mainView) mainView.style.display = 'none';
@@ -597,19 +603,11 @@ if (btnHistory) {
 const btnBackHome = document.getElementById('btn-back-home');
 if (btnBackHome) {
     btnBackHome.onclick = () => {
-        // 情境 A: 在詳細頁 (#detail) -> 按返回 -> 回到列表
-        if (location.hash === '#detail') {
+        // 只要有 hash (不論是 #history 還是 #detail)，都執行上一頁
+        if (location.hash) {
             history.back();
-        }
-        // 情境 B: 在列表頁 (#history) -> 按返回 -> 回到首頁
-        else if (location.hash === '#history') {
-            history.back();
-        } 
-        // 情境 C: 其他狀況 -> 強制回首頁並清除 hash
-        else {
+        } else {
             goHome();
-            // 如果網址上有怪東西，手動推回乾淨狀態
-            if(location.hash) history.pushState(null, null, ' '); 
         }
     };
 }
