@@ -600,15 +600,14 @@ function renderHistory() {
         // [新增] 避免長按觸發點擊的旗標
         let isLongPress = false;
 
-        // [新增] 綁定長按刪除事件
+        // [修改] 綁定長按事件：支援重新命名與刪除
         addLongPressEvent(headerArea, async () => {
             isLongPress = true;
             
-            // 使用符合 App 風格的 Modal 進行確認
-            // 注意：這裡借用 openUniversalModal，標題設為刪除，輸入框顯示標題供確認
+            // 跳出選項視窗
             const result = await openUniversalModal({
-                title: '刪除紀錄',
-                desc: '確定要刪除這筆紀錄嗎？請點擊左下角紅色刪除鈕。',
+                title: '編輯標題',
+                desc: '請修改標題名稱，或點擊左下角刪除此紀錄',
                 defaultValue: story.title,
                 showDelete: true
             });
@@ -619,6 +618,20 @@ function renderHistory() {
                 const newStories = currentStories.filter(s => s.id !== story.id);
                 localStorage.setItem('saved_stories', JSON.stringify(newStories));
                 renderHistory(); // 重新渲染列表
+            }
+            else if (result.action === 'confirm' && result.value) {
+                // 執行重新命名
+                const newTitle = result.value.trim();
+                if (newTitle && newTitle !== story.title) {
+                    const currentStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
+                    // 找到該筆資料並更新
+                    const targetIndex = currentStories.findIndex(s => s.id === story.id);
+                    if (targetIndex !== -1) {
+                        currentStories[targetIndex].title = newTitle;
+                        localStorage.setItem('saved_stories', JSON.stringify(currentStories));
+                        renderHistory();
+                    }
+                }
             }
 
             // 重置旗標 (延遲一點以避開 click 事件)
