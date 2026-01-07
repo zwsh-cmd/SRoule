@@ -485,8 +485,8 @@ function goHome() {
 
 // 監聽手機實體返回鍵 (Popstate)
 window.addEventListener('popstate', (event) => {
-    // 1. 如果回到首頁 (無 hash)
-    if (!location.hash) {
+    // 1. 如果回到首頁 (無 hash 或僅有 #)
+    if (!location.hash || location.hash === '#') {
         goHome();
     } 
     // 2. 如果回到歷史列表 (#history) - 可能是從詳細頁回來的
@@ -517,15 +517,20 @@ document.getElementById('btn-history').onclick = () => {
     renderHistory();
 };
 
-// 設定 App 內「返回」按鈕：呼叫瀏覽器上一頁 (這會觸發上面的 popstate)
+// 設定 App 內「返回」按鈕：明確定義三層邏輯
 const btnBackHome = document.getElementById('btn-back-home');
 if (btnBackHome) {
     btnBackHome.onclick = () => {
-        // 只要有 hash (不論是 #history 還是 #detail)，都執行上一頁
-        if (location.hash) {
+        // 情境 1: 在詳細頁 (#detail) -> 按返回 -> 回到列表 (#history)
+        if (location.hash === '#detail') {
             history.back();
-        } else {
-            // 保險起見，若網址狀態不對，直接執行回首頁
+        }
+        // 情境 2: 在列表頁 (#history) -> 按返回 -> 回到首頁 (無 hash)
+        else if (location.hash === '#history') {
+            history.back();
+        } 
+        // 情境 3: 其他狀況 (如無 hash 但介面卡住) -> 強制回首頁
+        else {
             goHome();
         }
     };
