@@ -462,35 +462,27 @@ document.getElementById('btn-history').onclick = () => {
     renderHistory();
 };
 
-// 重新啟用返回按鈕 (三層式邏輯：詳細內容 -> 歷史清單 -> 首頁)
+// 重新啟用返回按鈕 (修改為：統一直接返回首頁)
 const btnBackHome = document.getElementById('btn-back-home');
 if (btnBackHome) {
     btnBackHome.onclick = () => {
-        // 依據按鈕文字判斷目前層級
-        if (btnBackHome.textContent === '返回清單') {
-            // [層級 3 -> 2] 從詳細內容 回到 清單
-            
-            // 1. 顯示所有清單項目 (恢復列表)
-            document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
-            
-            // 2. 收合所有內容細節
-            document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
-            
-            // 3. 更新按鈕與視圖
-            btnBackHome.textContent = '返回首頁';
-            window.scrollTo({top: 0, behavior: 'smooth'});
-
-        } else {
-            // [層級 2 -> 1] 從清單 回到 首頁
-            historyView.style.display = 'none';
-            mainView.style.display = 'block';
-            
-            // 恢復首頁元件顯示
-            document.getElementById('btn-generate').style.display = 'flex';
-            if (generatedResult) {
-                document.getElementById('result-area').style.display = 'block';
-            }
+        // 1. 切換視圖回首頁
+        historyView.style.display = 'none';
+        mainView.style.display = 'block';
+        
+        // 2. 恢復首頁元件顯示
+        document.getElementById('btn-generate').style.display = 'flex';
+        if (generatedResult) {
+            document.getElementById('result-area').style.display = 'block';
         }
+
+        // 3. 重置歷史清單狀態 (確保下次進來時是完整的列表，而不是卡在詳情頁)
+        document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
+        document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
+        
+        // 確保按鈕文字重置
+        btnBackHome.textContent = '返回首頁';
+        window.scrollTo({top: 0, behavior: 'smooth'});
     };
 }
 
