@@ -17,9 +17,9 @@ if (typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
     
     // 設定常用的變數，方便之後呼叫
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    const provider = new firebase.auth.GoogleAuthProvider();
+    window.auth = firebase.auth();
+    window.db = firebase.firestore();
+    window.provider = new firebase.auth.GoogleAuthProvider();
     
     console.log("Firebase 初始化成功！");
 } else {
@@ -43,4 +43,5 @@ function logout() {
         alert("已登出");
         location.reload(); 
     });
+
 }
