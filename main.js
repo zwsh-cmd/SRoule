@@ -480,9 +480,23 @@ function goHome() {
 
 // 監聽手機實體返回鍵 (Popstate)
 window.addEventListener('popstate', (event) => {
-    // 如果網址沒有 #history (代表使用者按了返回鍵想回到首頁)，就執行 goHome
+    // 1. 如果回到首頁 (無 hash)
     if (!location.hash) {
         goHome();
+    } 
+    // 2. 如果回到歷史列表 (#history) - 可能是從詳細頁回來的
+    else if (location.hash === '#history') {
+        // 確保顯示歷史頁面容器
+        mainView.style.display = 'none';
+        historyView.style.display = 'block';
+        
+        // 重置清單顯示狀態 (收合詳情，顯示列表)
+        document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
+        document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
+        
+        // 重置按鈕文字
+        const btnBack = document.getElementById('btn-back-home');
+        if(btnBack) btnBack.textContent = '返回首頁';
     }
 });
 
@@ -502,8 +516,8 @@ document.getElementById('btn-history').onclick = () => {
 const btnBackHome = document.getElementById('btn-back-home');
 if (btnBackHome) {
     btnBackHome.onclick = () => {
-        // 如果目前在歷史頁 (網址有 #history)，執行上一頁會觸發 popstate -> goHome
-        if (location.hash === '#history') {
+        // 只要有 hash (不論是 #history 還是 #detail)，都執行上一頁
+        if (location.hash) {
             history.back();
         } else {
             // 保險起見，若網址狀態不對，直接執行回首頁
@@ -554,6 +568,9 @@ function renderHistory() {
         headerArea.onclick = () => {
             // [層級 2 -> 3] 進入詳細內容模式
             
+            // 新增：加入 #detail 歷史狀態，讓返回鍵能跳回清單 (#history)
+            history.pushState({ page: 'detail' }, 'Detail', '#detail');
+
             // 1. 隱藏「所有」歷史項目卡片 (讓畫面變乾淨)
             document.querySelectorAll('.history-item').forEach(el => el.style.display = 'none');
             
