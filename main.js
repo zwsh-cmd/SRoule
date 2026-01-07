@@ -558,12 +558,54 @@ function renderHistory() {
                 <p><strong>📖 大綱：</strong><br>${outlineContent.replace(/\n/g, '<br>')}</p>
                 <hr style="border:0; border-top:1px dashed #ddd;">
                 <p><strong>📊 分析：</strong><br>${analysisContent.replace(/\n/g, '<br>')}</p>
-                <div style="text-align:center; margin-top:20px; color:#888; font-size:0.8rem;">(已到底部)</div>
+                
+                <button class="copy-btn" style="width:100%; margin:20px 0; background:#8fa3ad; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem;">
+                    📋 複製全部內容
+                </button>
+
+                <div style="text-align:center; color:#888; font-size:0.8rem;">(已到底部)</div>
             </div>
         `;
         
         const headerArea = item.querySelector('.history-header-area');
         const detail = item.querySelector('.history-detail');
+        const copyBtn = item.querySelector('.copy-btn');
+
+        // 綁定複製按鈕事件
+        copyBtn.onclick = (e) => {
+            e.stopPropagation(); // 避免觸發收合或其他事件
+            
+            // 組合純文字內容
+            const fullText = 
+`標題：${story.title}
+時間：${story.timestamp}
+
+【設定清單】
+${listContent}
+
+【故事圈】
+${circleContent}
+
+【大綱】
+${outlineContent}
+
+【分析】
+${analysisContent}`;
+
+            // 執行複製
+            navigator.clipboard.writeText(fullText).then(() => {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = '✅ 已複製！';
+                copyBtn.style.backgroundColor = '#4CAF50'; // 轉為綠色提示
+                setTimeout(() => {
+                    copyBtn.textContent = originalText;
+                    copyBtn.style.backgroundColor = '#8fa3ad'; // 恢復原色
+                }, 2000);
+            }).catch(err => {
+                alert('複製失敗，請手動複製。');
+                console.error(err);
+            });
+        };
 
         headerArea.onclick = () => {
             // [層級 2 -> 3] 進入詳細內容模式
