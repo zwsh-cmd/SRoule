@@ -597,6 +597,34 @@ function renderHistory() {
         const detail = item.querySelector('.history-detail');
         const copyBtn = item.querySelector('.copy-btn');
 
+        // [新增] 避免長按觸發點擊的旗標
+        let isLongPress = false;
+
+        // [新增] 綁定長按刪除事件
+        addLongPressEvent(headerArea, async () => {
+            isLongPress = true;
+            
+            // 使用符合 App 風格的 Modal 進行確認
+            // 注意：這裡借用 openUniversalModal，標題設為刪除，輸入框顯示標題供確認
+            const result = await openUniversalModal({
+                title: '刪除紀錄',
+                desc: '確定要刪除這筆紀錄嗎？請點擊左下角紅色刪除鈕。',
+                defaultValue: story.title,
+                showDelete: true
+            });
+
+            if (result.action === 'delete') {
+                // 執行刪除
+                const currentStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
+                const newStories = currentStories.filter(s => s.id !== story.id);
+                localStorage.setItem('saved_stories', JSON.stringify(newStories));
+                renderHistory(); // 重新渲染列表
+            }
+
+            // 重置旗標 (延遲一點以避開 click 事件)
+            setTimeout(() => { isLongPress = false; }, 300);
+        });
+
         // 綁定複製按鈕事件
         copyBtn.onclick = (e) => {
             e.stopPropagation(); // 避免觸發收合或其他事件
@@ -634,6 +662,9 @@ ${analysisContent}`;
         };
 
         headerArea.onclick = () => {
+            // [修改] 如果是長按操作，則忽略這次點擊
+            if (isLongPress) return;
+
             // [層級 2 -> 3] 進入詳細內容模式
             
             // 新增：加入 #detail 歷史狀態，讓返回鍵能跳回清單 (#history)
