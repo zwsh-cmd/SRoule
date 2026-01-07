@@ -16,6 +16,22 @@ function cleanTitle(text) {
 
 // 2. 初始化：渲染畫面
 function renderApp() {
+    // [新增] 注入自定義樣式，嘗試覆蓋下拉選單的原生藍色 (註：依瀏覽器支援度而定)
+    if (!document.getElementById('custom-dropdown-style')) {
+        const style = document.createElement('style');
+        style.id = 'custom-dropdown-style';
+        style.textContent = `
+            /* 嘗試修改 Option 的選取與懸停顏色 (主要針對 Firefox 或支援的 Webview) */
+            select option:checked,
+            select option:hover {
+                background-color: #8fa3ad !important; /* 莫蘭迪藍灰 */
+                color: white !important;
+                box-shadow: 0 0 10px 100px #8fa3ad inset; /* 強制覆蓋背景 */
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     container.innerHTML = '';
     
     // 遍歷大分類
