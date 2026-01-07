@@ -507,104 +507,122 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     }
 });
 
+// --- 設定視窗邏輯 ---
 const modal = document.getElementById('settings-modal');
-document.getElementById('btn-settings').onclick = () => modal.style.display = 'flex';
-document.getElementById('btn-close-settings').onclick = () => modal.style.display = 'none';
-document.getElementById('btn-save-key').onclick = () => {
-    const key = document.getElementById('api-key-input').value.trim();
-    if (key) {
-        localStorage.setItem('gemini_api_key', key);
-        alert("Key 已儲存！");
-        modal.style.display = 'none';
-    }
-};
+if (modal) {
+    const btnSet = document.getElementById('btn-settings');
+    const btnClose = document.getElementById('btn-close-settings');
+    const btnSaveKey = document.getElementById('btn-save-key');
 
+    if(btnSet) btnSet.onclick = () => modal.style.display = 'flex';
+    if(btnClose) btnClose.onclick = () => modal.style.display = 'none';
+    if(btnSaveKey) btnSaveKey.onclick = () => {
+        const key = document.getElementById('api-key-input').value.trim();
+        if (key) {
+            localStorage.setItem('gemini_api_key', key);
+            alert("Key 已儲存！");
+            modal.style.display = 'none';
+        }
+    };
+}
+
+// --- 路由與導航控制變數 ---
 const mainView = document.getElementById('main-view');
 const historyView = document.getElementById('history-view');
-const historyList = document.getElementById('history-list');
+const historyListEle = document.getElementById('history-list');
 
-// --- 路由與導航控制 (解決手機返回鍵關閉 App 問題) ---
-
-// 定義共用的「回到首頁」函式
+// 1. 回到首頁函式
 function goHome() {
-    // 1. 切換視圖
-    historyView.style.display = 'none';
-    mainView.style.display = 'block';
+    // 切換視圖
+    if(historyView) historyView.style.display = 'none';
+    if(mainView) mainView.style.display = 'block';
     
-    // 2. 恢復元件
-    document.getElementById('btn-generate').style.display = 'flex';
-    if (generatedResult) {
-        document.getElementById('result-area').style.display = 'block';
-    }
+    // 恢復產生器介面 (生成結果與按鈕)
+    const btnGen = document.getElementById('btn-generate');
+    const resArea = document.getElementById('result-area');
+    
+    if(btnGen) btnGen.style.display = 'flex';
+    if(generatedResult && resArea) resArea.style.display = 'block';
 
-    // 3. 重置歷史清單狀態
+    // 重置歷史清單 (全部展開)
     document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
     document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
     
-    // 4. 重置按鈕
+    // 重置按鈕文字
     const btnBack = document.getElementById('btn-back-home');
     if(btnBack) btnBack.textContent = '返回首頁';
+    
+    // 滾動到頂部
     window.scrollTo({top: 0, behavior: 'smooth'});
 }
 
-// 監聽手機實體返回鍵 (Popstate)
+// 2. 監聽瀏覽器返回鍵 (Popstate)
 window.addEventListener('popstate', (event) => {
-    // 1. 如果回到首頁 (無 hash 或僅有 #)
+    // 如果網址沒有 hash (或是只有 #)，代表回到首頁
     if (!location.hash || location.hash === '#') {
         goHome();
     } 
-    // 2. 如果回到歷史列表 (#history) - 可能是從詳細頁回來的
+    // 如果是回到 #history (例如從詳細頁按返回)
     else if (location.hash === '#history') {
-        // 確保顯示歷史頁面容器
-        mainView.style.display = 'none';
-        historyView.style.display = 'block';
+        if(mainView) mainView.style.display = 'none';
+        if(historyView) historyView.style.display = 'block';
         
-        // 重置清單顯示狀態 (收合詳情，顯示列表)
+        // 確保列表顯示，詳情隱藏
         document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
         document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
         
-        // 重置按鈕文字
         const btnBack = document.getElementById('btn-back-home');
         if(btnBack) btnBack.textContent = '返回首頁';
     }
 });
 
-// 設定「歷史紀錄」按鈕：點擊時加入歷史堆疊 (pushState)
-document.getElementById('btn-history').onclick = () => {
-    // 加入 #history，讓手機返回鍵能運作而不關閉 App
-    history.pushState({ page: 'history' }, 'History', '#history');
+// 3. 設定「歷史紀錄」按鈕 (加入 #history)
+const btnHistory = document.getElementById('btn-history');
+if (btnHistory) {
+    btnHistory.onclick = () => {
+        history.pushState({ page: 'history' }, 'History', '#history');
 
-    mainView.style.display = 'none';
-    document.getElementById('result-area').style.display = 'none';
-    document.getElementById('btn-generate').style.display = 'none';
-    historyView.style.display = 'block';
-    renderHistory();
-};
+        if(mainView) mainView.style.display = 'none';
+        const resArea = document.getElementById('result-area');
+        if(resArea) resArea.style.display = 'none';
+        const btnGen = document.getElementById('btn-generate');
+        if(btnGen) btnGen.style.display = 'none';
+        
+        if(historyView) historyView.style.display = 'block';
+        renderHistory();
+    };
+}
 
-// 設定 App 內「返回」按鈕：明確定義三層邏輯
+// 4. 設定「返回首頁/返回清單」按鈕邏輯
 const btnBackHome = document.getElementById('btn-back-home');
 if (btnBackHome) {
     btnBackHome.onclick = () => {
-        // 情境 1: 在詳細頁 (#detail) -> 按返回 -> 回到列表 (#history)
+        // 情境 A: 在詳細頁 (#detail) -> 按返回 -> 回到列表
         if (location.hash === '#detail') {
             history.back();
         }
-        // 情境 2: 在列表頁 (#history) -> 按返回 -> 回到首頁 (無 hash)
+        // 情境 B: 在列表頁 (#history) -> 按返回 -> 回到首頁
         else if (location.hash === '#history') {
             history.back();
         } 
-        // 情境 3: 其他狀況 (如無 hash 但介面卡住) -> 強制回首頁
+        // 情境 C: 其他狀況 -> 強制回首頁並清除 hash
         else {
             goHome();
+            // 如果網址上有怪東西，手動推回乾淨狀態
+            if(location.hash) history.pushState(null, null, ' '); 
         }
     };
 }
 
+// --- 歷史紀錄渲染 (RenderHistory) ---
 async function renderHistory() {
-    historyList.innerHTML = '<div style="text-align:center; padding:20px;">載入中...</div>';
+    const list = document.getElementById('history-list');
+    if (!list) return;
+
+    list.innerHTML = '<div style="text-align:center; padding:20px;">載入中...</div>';
     
     const btnBack = document.getElementById('btn-back-home');
-    if(btnBack) btnBack.textContent = '返回首頁';
+    if(btnBack && location.hash !== '#detail') btnBack.textContent = '返回首頁';
 
     let stories = [];
 
@@ -616,17 +634,17 @@ async function renderHistory() {
                 stories = snapshot.docs.map(doc => doc.data());
             }
         } catch (e) {
-            historyList.innerHTML = `<div style="color:red">讀取失敗：${e.message}</div>`;
+            list.innerHTML = `<div style="color:red">讀取失敗：${e.message}</div>`;
             return;
         }
     } else {
         stories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
     }
 
-    historyList.innerHTML = '';
+    list.innerHTML = '';
 
     if (stories.length === 0) {
-        historyList.innerHTML = '<div style="text-align:center; color:#888; margin-top:50px;">這裡空空的 (尚無紀錄)</div>';
+        list.innerHTML = '<div style="text-align:center; color:#888; margin-top:50px;">這裡空空的 (尚無紀錄)</div>';
         return;
     }
 
@@ -667,7 +685,7 @@ async function renderHistory() {
         const copyBtn = item.querySelector('.copy-btn');
         let isLongPress = false;
 
-        // 刪除邏輯 (包含雲端)
+        // 刪除邏輯
         addLongPressEvent(headerArea, async () => {
             isLongPress = true;
             const result = await openUniversalModal({
@@ -679,20 +697,18 @@ async function renderHistory() {
 
             if (result.action === 'delete') {
                 if (isCloudMode && currentUser) {
-                    // 雲端刪除
                     await db.collection('users').doc(currentUser.uid).collection('stories').doc(String(story.id)).delete();
                 } else {
-                    // 本地刪除
                     const currentStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
                     const newStories = currentStories.filter(s => s.id !== story.id);
                     localStorage.setItem('saved_stories', JSON.stringify(newStories));
                 }
-                renderHistory(); // 重新整理
+                renderHistory(); 
             }
             setTimeout(() => { isLongPress = false; }, 300);
         });
 
-        // 複製按鈕邏輯
+        // 複製邏輯
         copyBtn.onclick = (e) => {
             e.stopPropagation();
             const fullText = `標題：${story.title}\n時間：${story.timestamp}\n\n【設定清單】\n${listContent}\n\n【故事圈】\n${circleContent}\n\n【大綱】\n${outlineContent}\n\n【分析】\n${analysisContent}`;
@@ -704,19 +720,23 @@ async function renderHistory() {
             }).catch(err => alert('複製失敗'));
         };
 
-        // 點擊展開邏輯
+        // 點擊展開邏輯 (加入 hash 變更)
         headerArea.onclick = () => {
             if (isLongPress) return;
+            // 關鍵：改變網址 hash 為 #detail
             history.pushState({ page: 'detail' }, 'Detail', '#detail');
+            
             document.querySelectorAll('.history-item').forEach(el => el.style.display = 'none');
             item.style.display = 'block';
             detail.style.display = 'block';
+            
             if(btnBack) btnBack.textContent = '返回清單';
             window.scrollTo({top: 0, behavior: 'smooth'});
         };
         
-        historyList.appendChild(item);
+        list.appendChild(item);
     });
 }
 
+// 確保程式一開始會執行渲染
 renderApp();
