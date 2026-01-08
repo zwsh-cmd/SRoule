@@ -415,7 +415,7 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
     storyContent.innerHTML = '';
     resultArea.scrollIntoView({ behavior: 'smooth' });
 
-    // 新的詳細 Prompt (修正：完整清單 + 隱藏三幕劇標題)
+    // 新的詳細 Prompt (修正：加入三幕劇與標題生成)
     const prompt = `
     你是一位崇尚 Robert McKee 《故事》美學的好萊塢高階劇本醫生 (Script Doctor)。
     你擅長處理深刻的「人性兩難」與「情境反諷 (Situational Irony)」。
@@ -426,13 +426,17 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
 
     請嚴格依照以下 JSON 格式回傳內容（內容字串內不要使用 Markdown 語法，僅純文字換行）：
     {
+        "story_title": "請為這個故事取一個具有文學性、電影感或懸疑感的精確標題。",
+        
         "settings_list": "請完整列出上方【抽選元素清單】的所有項目（包含補充條件），嚴禁省略任何一個標題或選項。格式保持「標題：選項」，每一項換行。",
         
-        "story_circle": "運用 Dan Harmon 故事圈 (Story Circle) 的 8 個步驟規劃。重點要求：\\n1. 在「步驟 3 (Go)」主角必須進入一個挑戰他原本價值觀的陌生世界。\\n2. 在「步驟 6 (Pay)」必須付出慘痛的代價，這個代價通常是「為了獲得目標，被迫犧牲原本堅持的道德或信念」。\\n3. 確保 8 個步驟邏輯緊密，每一步驟換行顯示。",
+        "three_act_structure": "請依照傳統三幕劇結構列出劇情節點，必須包含標題：I. 起 (Setup)、II-A. 承 (Confrontation - Part 1)、II-B. 轉 (Confrontation - Part 2)、III. 合 (Resolution)。每一步驟換行顯示。",
+
+        "story_circle": "運用 Dan Harmon 故事圈 (Story Circle) 的 8 個步驟規劃。重點要求：必須標示步驟名稱，格式為「1. YOU (主角/現狀)」、「2. NEED (渴望)」、「3. GO (出發)」、「4. SEARCH (追尋/試煉)」、「5. FIND (發現)」、「6. TAKE (代價)」、「7. RETURN (回歸)」、「8. CHANGE (改變)」。請確保步驟 6 主角付出了慘痛代價。每一步驟換行顯示。",
         
-        "story_outline": "請撰寫約 500 字的深度故事大綱。請內化三幕劇結構（鋪陳、衝突、結局）來撰寫，但「不要」在文中出現「第一幕」、「第二幕」或「鋪陳」、「高潮」等標題，請直接寫成一篇連貫流暢的文章。內容須包含：\\n1. 【伏筆與呼應】：開頭出現的微小元素，必須在結局成為關鍵轉折。\\n2. 【價值觀反諷 (Irony of Character)】：請設計一個極致的兩難困境。例如：「為了和平必須殺戮」、「為了誠實必須說謊」。讓主角被迫採取與其身份/信念背道而馳的行動，才能解決危機。",
+        "story_outline": "請撰寫約 500 字的深度故事大綱。請內化三幕劇結構來撰寫，寫成一篇連貫流暢的文章。內容須包含：\\n1. 【伏筆與呼應】：開頭出現的微小元素，必須在結局成為關鍵轉折。\\n2. 【價值觀反諷】：設計一個極致的兩難困境，讓主角被迫採取與其身份/信念背道而馳的行動。",
         
-        "analysis": "請進行深度的劇本診斷：\\n1. 【主控思想 (Controlling Idea)】：用一句話定義故事的辯證（格式：A 戰勝了 B，因為 C。例如：正義戰勝了邪惡，因為英雄犧牲了純真）。\\n2. 【反諷張力】：具體指出這個故事中，哪一個橋段展現了「主角被迫背叛自己信念」的悲劇性或諷刺性。\\n3. 【盲點建議】：目前的衝突是否夠殘酷？主角的選擇是否夠艱難？"
+        "analysis": "請進行深度的劇本診斷：\\n1. 【主控思想】：用一句話定義故事的辯證。\\n2. 【反諷張力】：具體指出哪一個橋段展現了悲劇性或諷刺性。\\n3. 【盲點建議】：目前的衝突是否夠殘酷？"
     }
     `;
 
@@ -442,7 +446,9 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
         const fallbackList = displayList.join('<br>');
 
         generatedResult = {
+            story_title: data.story_title, // 新增：標題
             settings_list: data.settings_list || fallbackList,
+            three_act_structure: data.three_act_structure, // 新增：三幕劇
             story_circle: data.story_circle,
             story_outline: data.story_outline, 
             analysis: data.analysis
@@ -450,14 +456,18 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
         
         loading.style.display = 'none';
         
-        // 渲染四個區塊 (使用 replace 確保換行顯示)
+        // 渲染五個區塊 (新增三幕劇區塊)
         storyContent.innerHTML = `
             <div style="background:#f0f2f5; padding:15px; border-radius:8px; margin-bottom:15px; font-size:0.95rem; line-height:1.6;">
                 <h4 style="margin-top:0;">📋 抽選清單</h4>
                 <div>${(generatedResult.settings_list).replace(/\n/g, '<br>')}</div>
             </div>
 
-            <h3>⭕ 故事圈設定</h3>
+            <h3>📐 三幕劇結構</h3>
+            <p>${(data.three_act_structure || '').replace(/\n/g, '<br>')}</p>
+            <hr>
+
+            <h3>⭕ 故事圈 (Story Circle)</h3>
             <p>${(data.story_circle || '').replace(/\n/g, '<br>')}</p>
             <hr>
 
@@ -477,7 +487,11 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
 // --- 儲存與其他功能 ---
 document.getElementById('btn-save').addEventListener('click', async () => {
     if (!generatedResult) return;
-    const title = prompt("請為這個故事取個名字：", "未命名故事");
+    
+    // 使用 AI 生成的標題作為預設值，若沒有則使用 "未命名故事"
+    const defaultTitle = generatedResult.story_title || "未命名故事";
+    const title = prompt("請為這個故事取個名字：", defaultTitle);
+    
     if (!title) return;
 
     const newStory = {
@@ -485,6 +499,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
         title: title,
         timestamp: new Date().toLocaleString(),
         settings_list: generatedResult.settings_list,
+        three_act_structure: generatedResult.three_act_structure, // 新增：儲存三幕劇
         story_circle: generatedResult.story_circle,
         story_outline: generatedResult.story_outline,
         analysis: generatedResult.analysis
@@ -665,6 +680,7 @@ async function renderHistory() {
         item.className = 'history-item';
         
         const listContent = story.settings_list || '舊資料無詳細清單';
+        const threeActContent = story.three_act_structure || '舊資料無三幕劇結構';
         const circleContent = story.story_circle || '舊資料無故事圈';
         const outlineContent = story.story_outline || story.content || ''; 
         const analysisContent = story.analysis || '無分析資料';
@@ -679,10 +695,16 @@ async function renderHistory() {
                 <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:10px;">
                     <strong>📋 設定清單：</strong><br>${listContent.replace(/\n/g, '<br>')}
                 </div>
+                
+                <p><strong>📐 三幕劇結構：</strong><br>${threeActContent.replace(/\n/g, '<br>')}</p>
+                <hr style="border:0; border-top:1px dashed #ddd;">
+                
                 <p><strong>⭕ 故事圈：</strong><br>${circleContent.replace(/\n/g, '<br>')}</p>
                 <hr style="border:0; border-top:1px dashed #ddd;">
+                
                 <p><strong>📖 大綱：</strong><br>${outlineContent.replace(/\n/g, '<br>')}</p>
                 <hr style="border:0; border-top:1px dashed #ddd;">
+                
                 <p><strong>📊 分析：</strong><br>${analysisContent.replace(/\n/g, '<br>')}</p>
                 
                 <button class="copy-btn" style="width:100%; margin:20px 0; background:#8fa3ad; color:white; border:none; padding:12px; border-radius:8px; cursor:pointer; font-size:1rem;">
@@ -723,7 +745,7 @@ async function renderHistory() {
         // 複製邏輯
         copyBtn.onclick = (e) => {
             e.stopPropagation();
-            const fullText = `標題：${story.title}\n時間：${story.timestamp}\n\n【設定清單】\n${listContent}\n\n【故事圈】\n${circleContent}\n\n【大綱】\n${outlineContent}\n\n【分析】\n${analysisContent}`;
+            const fullText = `標題：${story.title}\n時間：${story.timestamp}\n\n【設定清單】\n${listContent}\n\n【三幕劇】\n${threeActContent}\n\n【故事圈】\n${circleContent}\n\n【大綱】\n${outlineContent}\n\n【分析】\n${analysisContent}`;
             navigator.clipboard.writeText(fullText).then(() => {
                 const originalText = copyBtn.textContent;
                 copyBtn.textContent = '✅ 已複製！';
