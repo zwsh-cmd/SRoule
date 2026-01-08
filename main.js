@@ -514,14 +514,22 @@ if (modal) {
     const btnClose = document.getElementById('btn-close-settings');
     const btnSaveKey = document.getElementById('btn-save-key');
 
-    if(btnSet) btnSet.onclick = () => modal.style.display = 'flex';
-    if(btnClose) btnClose.onclick = () => modal.style.display = 'none';
+    // 打開設定時，推入 #settings 歷史紀錄
+    if(btnSet) btnSet.onclick = () => {
+        history.pushState({ page: 'settings' }, 'Settings', '#settings');
+        modal.style.display = 'flex';
+    };
+
+    // 點擊取消時，執行瀏覽器上一頁 (會自動觸發 popstate 關閉視窗)
+    if(btnClose) btnClose.onclick = () => history.back();
+
     if(btnSaveKey) btnSaveKey.onclick = () => {
         const key = document.getElementById('api-key-input').value.trim();
         if (key) {
             localStorage.setItem('gemini_api_key', key);
             alert("Key 已儲存！");
-            modal.style.display = 'none';
+            // 儲存成功後也執行上一頁來關閉
+            history.back();
         }
     };
 }
@@ -558,6 +566,12 @@ function goHome() {
 
 // 2. 監聽瀏覽器返回鍵 (Popstate)
 window.addEventListener('popstate', (event) => {
+    // [新增] 當網址改變且不再是 #settings 時，強制關閉設定視窗
+    const settingsModal = document.getElementById('settings-modal');
+    if (settingsModal && location.hash !== '#settings') {
+        settingsModal.style.display = 'none';
+    }
+
     // 如果網址沒有 hash (或是只有 #)，代表回到首頁
     if (!location.hash || location.hash === '#') {
         goHome();
