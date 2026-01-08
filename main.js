@@ -1,6 +1,38 @@
 // main.js - 雲端版
 
 let appData = loadData();
+
+// [系統核心還原與自動校正]
+// 啟動時執行完整性檢查：若原廠設定的分類（如主角）遺失，立即執行資料重建與還原。
+// 這會將遺失的資料永久寫回儲存空間，回復到誤刪前的狀態。
+if (typeof defaultData !== 'undefined') {
+    let needRestore = false;
+    
+    // 檢查每一個原廠分類
+    for (const [key, val] of Object.entries(defaultData)) {
+        if (!appData[key]) {
+            appData[key] = JSON.parse(JSON.stringify(val)); // 執行還原
+            needRestore = true;
+        }
+    }
+
+    // 如果有執行還原，重新存檔並重整結構
+    if (needRestore) {
+        const sortedData = {};
+        // 1. 確保原廠分類排在最上方
+        for (const key of Object.keys(defaultData)) {
+            if (appData[key]) sortedData[key] = appData[key];
+        }
+        // 2. 再排入使用者自訂的分類
+        for (const key of Object.keys(appData)) {
+            if (!defaultData[key]) sortedData[key] = appData[key];
+        }
+        appData = sortedData;
+        saveData(appData); // 永久寫回資料庫
+        console.log("系統報告：核心資料已完整還原。");
+    }
+}
+
 let currentSelection = {};
 let generatedResult = null;
 let currentUser = null; // 當前使用者
@@ -241,29 +273,20 @@ function addLongPressEvent(element, callback) {
     element.addEventListener('touchend', end);
 }
 
-// 3. 修改分類標題 (長按標題)
+// 3. 修改分類標題 (長按標題) - [安全模式：僅限修改]
 async function renameCategory(cat, subCat) {
     const oldKey = subCat || cat;
     const cleanName = cleanTitle(oldKey); 
     
     const result = await openUniversalModal({
         title: '編輯標題',
-        desc: '請修改標題名稱，或點擊左下角刪除此分類',
+        desc: '請輸入新的標題名稱：', 
         defaultValue: cleanName,
-        showDelete: true // 開啟刪除按鈕
+        showDelete: false // [安全防護] 移除刪除功能
     });
 
-    if (result.action === 'delete') {
-        // 刪除邏輯
-        if (subCat) {
-            delete appData[cat][subCat];
-        } else {
-            delete appData[cat];
-        }
-        saveData(appData);
-        renderApp();
-    }
-    else if (result.action === 'confirm' && result.value) {
+    // 僅保留修改功能，刪除邏輯已移除
+    if (result.action === 'confirm' && result.value) {
         // 修改邏輯
         const newName = result.value;
         if (newName === cleanName) return;
@@ -315,7 +338,7 @@ async function addItemViaPrompt(cat, subCat) {
     }
 }
 
-// 5. 編輯或刪除選項 (長按選單)
+// 5. 編輯選項 (長按選單) - [安全模式：僅限修改]
 async function showDeleteMenu(cat, subCat, currentValue) {
     if (!currentValue) return;
 
@@ -326,17 +349,13 @@ async function showDeleteMenu(cat, subCat, currentValue) {
 
     const result = await openUniversalModal({
         title: '編輯選項',
-        desc: '您可以修改內容，或點擊左下角刪除',
+        desc: '請修改內容名稱：',
         defaultValue: currentValue,
-        showDelete: true // 顯示刪除按鈕
+        showDelete: false // [安全防護] 移除刪除功能
     });
 
-    if (result.action === 'delete') {
-        arr.splice(idx, 1);
-        saveData(appData);
-        renderApp();
-    } 
-    else if (result.action === 'confirm' && result.value) {
+    // 僅保留修改功能，刪除邏輯已移除
+    if (result.action === 'confirm' && result.value) {
         // 修改內容 (原地替換)
         arr[idx] = result.value;
         saveData(appData);
@@ -686,11 +705,21 @@ async function renderHistory() {
         const analysisContent = story.analysis || '無分析資料';
 
         item.innerHTML = `
-            <div class="history-header-area" style="cursor:pointer;">
-                <div style="font-weight:bold; font-size:1.1rem; color:#5e6b75;">${story.title}</div>
-                <div style="font-size:0.8rem; color:#999; margin-bottom:8px;">${story.timestamp}</div>
-                ${isCloudMode ? '<span style="font-size:0.7rem; background:#4285F4; color:white; padding:2px 5px; border-radius:4px;">Cloud</span>' : ''}
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div class="history-header-area" style="cursor:pointer; flex:1;">
+                    <div style="font-weight:bold; font-size:1.1rem; color:#5e6b75;">${story.title}</div>
+                    <div style="font-size:0.8rem; color:#999; margin-bottom:8px;">${story.timestamp}</div>
+                    ${isCloudMode ? '<span style="font-size:0.7rem; background:#4285F4; color:white; padding:2px 5px; border-radius:4px;">Cloud</span>' : ''}
+                </div>
+                
+                <button class="btn-delete-history" style="background:none; border:none; padding:5px 10px; cursor:pointer; opacity:0.6;" title="刪除此紀錄">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e74c3c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                </button>
             </div>
+
             <div class="history-detail" style="display:none; border-top:1px solid #eee; padding-top:10px; margin-top:10px; font-size:0.95rem; line-height:1.5;">
                 <div style="background:#f9f9f9; padding:10px; border-radius:5px; margin-bottom:10px;">
                     <strong>📋 設定清單：</strong><br>${listContent.replace(/\n/g, '<br>')}
@@ -715,21 +744,22 @@ async function renderHistory() {
         `;
         
         const headerArea = item.querySelector('.history-header-area');
+        const deleteBtn = item.querySelector('.btn-delete-history'); // 抓取垃圾桶按鈕
         const detail = item.querySelector('.history-detail');
         const copyBtn = item.querySelector('.copy-btn');
         let isLongPress = false;
 
-        // 刪除邏輯
-        addLongPressEvent(headerArea, async () => {
-            isLongPress = true;
-            const result = await openUniversalModal({
+        // [新增] 垃圾桶刪除邏輯
+        deleteBtn.onclick = async (e) => {
+            e.stopPropagation(); // 避免觸發展開
+            const confirmDelete = await openUniversalModal({
                 title: '刪除紀錄',
-                desc: '確定要刪除這筆紀錄嗎？(無法復原)',
-                defaultValue: story.title,
-                showDelete: true
+                desc: `確定要刪除「${story.title}」嗎？無法復原。`,
+                defaultValue: '',
+                showDelete: true // 這裡借用 Modal 的確認按鈕邏輯
             });
 
-            if (result.action === 'delete') {
+            if (confirmDelete.action === 'delete') {
                 if (isCloudMode && currentUser) {
                     await db.collection('users').doc(currentUser.uid).collection('stories').doc(String(story.id)).delete();
                 } else {
@@ -739,8 +769,7 @@ async function renderHistory() {
                 }
                 renderHistory(); 
             }
-            setTimeout(() => { isLongPress = false; }, 300);
-        });
+        };
 
         // 複製邏輯
         copyBtn.onclick = (e) => {
