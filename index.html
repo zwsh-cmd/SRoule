@@ -19,12 +19,6 @@
         </div>
         <div style="display:flex; gap:8px; align-items: center;">
             
-            <div id="user-info" style="display:none; align-items:center; gap:5px; margin-right:5px;">
-                 <img id="user-avatar" src="" style="width:32px; height:32px; border-radius:50%; border:2px solid white;">
-                 <button id="btn-logout" class="icon-btn" style="font-size:0.8rem; color:white; background:rgba(0,0,0,0.2);">登出</button>
-            </div>
-            <button id="btn-login" style="background:#4285F4; font-size:0.9rem; padding:6px 12px; display:none;">Google 登入</button>
-            
             <button id="btn-history" title="歷史紀錄" style="background:none; border:none; padding:8px; cursor:pointer;">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
             </button>
@@ -66,6 +60,19 @@
 
     <div id="settings-modal" class="modal">
         <div class="modal-content">
+            <div style="border-bottom:1px solid #eee; padding-bottom:15px; margin-bottom:15px;">
+                <h3 style="margin-top:0;">帳號設定</h3>
+                
+                <div id="user-info" style="display:none; align-items:center; gap:10px;">
+                     <img id="user-avatar" src="" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
+                     <button id="btn-logout" class="secondary" style="font-size:0.9rem;">登出</button>
+                </div>
+
+                <button id="btn-login" style="background:#4285F4; color:white; width:100%; padding:10px; border:none; border-radius:8px; font-size:1rem; cursor:pointer; display:none;">
+                    Google 登入
+                </button>
+            </div>
+
             <h3>設定 Gemini API Key</h3>
             <p style="font-size:0.8rem; color:#666;">Key 僅儲存於您的瀏覽器，不會上傳。</p>
             <input type="password" id="api-key-input" placeholder="貼上你的 API Key">
