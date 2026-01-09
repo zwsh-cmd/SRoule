@@ -612,8 +612,9 @@ if (modal) {
                 try {
                     const importedData = JSON.parse(event.target.result);
                     
-                    // 簡單檢查資料結構是否合法 (有沒有主角分類)
-                    if (importedData["A (主角)"]) {
+                    // [修正] 放寬檢查標準：只要是物件且裡面有資料即可，不強求特定分類名稱
+                    // (因為使用者可能已經把 "A (主角)" 改名了)
+                    if (importedData && typeof importedData === 'object' && Object.keys(importedData).length > 0) {
                         if (confirm("確定要還原此備份嗎？\n目前的設定將會被覆蓋。")) {
                             appData = importedData;
                             saveData(appData); // 這會自動觸發雲端同步
