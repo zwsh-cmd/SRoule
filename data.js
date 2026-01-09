@@ -46,7 +46,24 @@ function loadData() {
     return defaultData;
 }
 
-// 儲存資料回 localStorage
+// 儲存資料回 localStorage (並嘗試同步雲端)
 function saveData(newData) {
+    // 1. 本地儲存 (絕對優先，保證速度)
     localStorage.setItem('script_roule_data', JSON.stringify(newData));
+
+    // 2. [Step A: 雲端同步備份] 
+    // 檢查 Firebase 是否啟動且使用者已登入，如果是，順便備份到雲端
+    if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
+        const db = firebase.firestore();
+        const uid = firebase.auth().currentUser.uid;
+
+        // 將設定存入 users -> {uid} -> 欄位 settings
+        // 使用 merge: true 確保不會覆蓋掉該使用者的其他資料 (如歷史故事)
+        db.collection('users').doc(uid).set({
+            settings: newData,
+            lastBackup: new Date().toISOString() // 紀錄備份時間
+        }, { merge: true })
+        .then(() => console.log("☁️ 設定已自動同步至雲端"))
+        .catch(err => console.error("雲端備份失敗 (不影響本地使用):", err));
+    }
 }
