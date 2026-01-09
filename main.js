@@ -37,7 +37,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     // 只有當雲端有設定時，才覆蓋本地
                     if (doc.exists && doc.data().settings) {
                         console.log("☁️ 發現雲端備份，正在還原設定...");
-                        appData = doc.data().settings;
+                        
+                        const cloudData = doc.data().settings;
+                        
+                        // [順序修正] 判斷是「真空包裝(字串)」還是「舊版資料(物件)」
+                        if (typeof cloudData === 'string') {
+                            appData = JSON.parse(cloudData); // 解開真空包裝，順序完美還原
+                        } else {
+                            appData = cloudData; // 舊版資料相容
+                        }
                         
                         // 更新本地暫存 (手動寫入 localStorage，避免呼叫 saveData 造成循環上傳)
                         localStorage.setItem('script_roule_data', JSON.stringify(appData));

@@ -58,12 +58,12 @@ function saveData(newData) {
         const uid = firebase.auth().currentUser.uid;
 
         // 將設定存入 users -> {uid} -> 欄位 settings
-        // 使用 merge: true 確保不會覆蓋掉該使用者的其他資料 (如歷史故事)
+        // [順序修正] 使用 JSON.stringify 將資料「真空包裝」成字串，避免 Firebase 打亂順序
         db.collection('users').doc(uid).set({
-            settings: newData,
+            settings: JSON.stringify(newData), 
             lastBackup: new Date().toISOString() // 紀錄備份時間
         }, { merge: true })
-        .then(() => console.log("☁️ 設定已自動同步至雲端"))
+        .then(() => console.log("☁️ 設定已自動同步至雲端 (順序已鎖定)"))
         .catch(err => console.error("雲端備份失敗 (不影響本地使用):", err));
     }
 }
