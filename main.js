@@ -550,6 +550,21 @@ if (modal) {
             history.back();
         }
     };
+
+    // [Step C] 恢復原廠設定按鈕邏輯
+    const btnResetFactory = document.getElementById('btn-reset-factory');
+    if (btnResetFactory) {
+        btnResetFactory.onclick = () => {
+            if (confirm("⚠️ 嚴重警告 ⚠️\n\n這將會「刪除」您目前所有的分類與選項修改，並恢復成剛安裝時的樣子。\n\n(您的歷史故事紀錄不會消失，但轉盤設定會被重置)\n\n確定要執行嗎？")) {
+                // 執行重置：深拷貝原廠設定，確保乾淨
+                appData = JSON.parse(JSON.stringify(defaultData));
+                saveData(appData);
+                renderApp();
+                alert("✅ 已恢復原廠設定！");
+                history.back(); // 關閉設定視窗
+            }
+        };
+    }
 }
 
 // --- 路由與導航控制變數 ---
