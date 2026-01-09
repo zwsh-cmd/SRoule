@@ -256,19 +256,30 @@ async function renameCategory(cat, subCat) {
 
     // 僅保留修改功能，刪除邏輯已移除
     if (result.action === 'confirm' && result.value) {
-        // 修改邏輯
         const newName = result.value;
-        if (newName === cleanName) return;
+        if (newName === cleanName) return; // 名稱沒變，不做事
 
+        // [安全更名邏輯]：先複製建立新分類，確認成功後再刪除舊的
         if (subCat) {
-            const items = appData[cat][subCat];
-            delete appData[cat][subCat];
-            appData[cat][newName] = items;
+            // 修改子分類
+            const contentToMove = appData[cat][subCat];
+            appData[cat][newName] = contentToMove; // 1. 建立新家
+
+            // 2. 只有新家建立成功，才拆舊家
+            if (appData[cat][newName]) {
+                delete appData[cat][subCat];
+            }
         } else {
-            const content = appData[cat];
-            delete appData[cat];
-            appData[newName] = content;
+            // 修改大分類
+            const contentToMove = appData[cat];
+            appData[newName] = contentToMove; // 1. 建立新家
+
+            // 2. 只有新家建立成功，才拆舊家
+            if (appData[newName]) {
+                delete appData[cat];
+            }
         }
+        
         saveData(appData);
         renderApp();
     }
