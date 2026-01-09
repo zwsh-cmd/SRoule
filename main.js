@@ -2,37 +2,6 @@
 
 let appData = loadData();
 
-// [系統核心還原與自動校正]
-// 啟動時執行完整性檢查：若原廠設定的分類（如主角）遺失，立即執行資料重建與還原。
-// 這會將遺失的資料永久寫回儲存空間，回復到誤刪前的狀態。
-if (typeof defaultData !== 'undefined') {
-    let needRestore = false;
-    
-    // 檢查每一個原廠分類
-    for (const [key, val] of Object.entries(defaultData)) {
-        if (!appData[key]) {
-            appData[key] = JSON.parse(JSON.stringify(val)); // 執行還原
-            needRestore = true;
-        }
-    }
-
-    // 如果有執行還原，重新存檔並重整結構
-    if (needRestore) {
-        const sortedData = {};
-        // 1. 確保原廠分類排在最上方
-        for (const key of Object.keys(defaultData)) {
-            if (appData[key]) sortedData[key] = appData[key];
-        }
-        // 2. 再排入使用者自訂的分類
-        for (const key of Object.keys(appData)) {
-            if (!defaultData[key]) sortedData[key] = appData[key];
-        }
-        appData = sortedData;
-        saveData(appData); // 永久寫回資料庫
-        console.log("系統報告：核心資料已完整還原。");
-    }
-}
-
 let currentSelection = {};
 let generatedResult = null;
 let currentUser = null; // 當前使用者
