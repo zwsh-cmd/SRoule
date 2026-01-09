@@ -30,6 +30,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (btnLogin) btnLogin.style.display = 'none';
                 if (userInfo) userInfo.style.display = 'flex';
                 if (userAvatar) userAvatar.src = user.photoURL;
+                
+                // [Step B: 登入自動同步] 嘗試從雲端下載類別設定
+                const db = firebase.firestore(); // 確保取得資料庫實例
+                db.collection('users').doc(user.uid).get().then(doc => {
+                    // 只有當雲端有設定時，才覆蓋本地
+                    if (doc.exists && doc.data().settings) {
+                        console.log("☁️ 發現雲端備份，正在還原設定...");
+                        appData = doc.data().settings;
+                        
+                        // 更新本地暫存 (手動寫入 localStorage，避免呼叫 saveData 造成循環上傳)
+                        localStorage.setItem('script_roule_data', JSON.stringify(appData));
+                        
+                        renderApp(); // 重新渲染畫面，讓設定生效
+                    }
+                }).catch(err => console.error("自動同步失敗:", err));
+
                 // 如果目前在歷史頁面，重新整理以讀取雲端資料
                 if (document.getElementById('history-view').style.display === 'block') {
                     renderHistory();
