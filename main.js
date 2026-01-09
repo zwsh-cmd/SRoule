@@ -575,6 +575,65 @@ if (modal) {
         }
     };
 
+    // [新增] 備份功能 (匯出 JSON)
+    const btnBackup = document.getElementById('btn-backup');
+    if (btnBackup) {
+        btnBackup.onclick = () => {
+            const dataStr = JSON.stringify(appData, null, 2); // 轉成美化過的 JSON 字串
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            // 產生當前時間檔名 (例: ScriptRoule_Backup_2026-01-09.json)
+            const date = new Date().toISOString().split('T')[0];
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ScriptRoule_Backup_${date}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url); // 釋放記憶體
+        };
+    }
+
+    // [新增] 還原功能 (匯入 JSON)
+    const btnRestore = document.getElementById('btn-restore');
+    const fileInputRestore = document.getElementById('file-input-restore');
+    
+    if (btnRestore && fileInputRestore) {
+        // 1. 點擊按鈕時，觸發隱藏的檔案選擇框
+        btnRestore.onclick = () => fileInputRestore.click();
+
+        // 2. 當使用者選好檔案後
+        fileInputRestore.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const importedData = JSON.parse(event.target.result);
+                    
+                    // 簡單檢查資料結構是否合法 (有沒有主角分類)
+                    if (importedData["A (主角)"]) {
+                        if (confirm("確定要還原此備份嗎？\n目前的設定將會被覆蓋。")) {
+                            appData = importedData;
+                            saveData(appData); // 這會自動觸發雲端同步
+                            renderApp();
+                            alert("✅ 還原成功！");
+                            history.back(); // 關閉設定視窗
+                        }
+                    } else {
+                        alert("❌ 檔案格式錯誤：這似乎不是本 App 的備份檔。");
+                    }
+                } catch (err) {
+                    alert("❌ 讀取失敗：" + err);
+                }
+                // 清空輸入框，確保下次選同個檔案也能觸發
+                fileInputRestore.value = '';
+            };
+            reader.readAsText(file);
+        };
+    }
+
     // [Step C] 恢復原廠設定按鈕邏輯
     const btnResetFactory = document.getElementById('btn-reset-factory');
     if (btnResetFactory) {
