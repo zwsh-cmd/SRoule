@@ -1,8 +1,5 @@
 // main.js - 雲端版
 
-// [步驟 C：記憶清洗] 強制清除舊的壞掉存檔，讓 APP 讀取 data.js 的原廠設定
-localStorage.removeItem('script_roule_data');
-
 let appData = loadData();
 
 let currentSelection = {};
