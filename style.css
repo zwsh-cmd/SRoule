@@ -107,6 +107,21 @@ button.icon-btn {
     margin-bottom: 10px;
 }
 
+/* 新增：一列兩個的網格佈局 */
+.items-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr; /* 左右各佔 50% */
+    gap: 15px 12px; /* 上下間距 15px, 左右間距 12px */
+    padding: 10px 20px 20px 20px; /* 容器內距 */
+}
+
+/* 當選項在網格內時，移除原本的邊距與內距，避免太擠 */
+.items-grid .sub-category-row {
+    padding: 0;
+    margin-bottom: 0;
+    width: 100%;
+}
+
 .sub-title {
     font-size: 1rem;
     color: var(--text-color);
