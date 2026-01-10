@@ -224,6 +224,43 @@ function renderDropdownRow(parent, cat, subCat, items) {
 
 // --- 編輯與互動功能區 (原生 App 風格) ---
 
+// 0. 專用確認視窗 (無輸入框，純確認)
+function openConfirmModal({ title, desc }) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        const titleEl = document.getElementById('c-modal-title');
+        const descEl = document.getElementById('c-modal-desc');
+        const btnConfirm = document.getElementById('c-btn-confirm');
+        const btnCancel = document.getElementById('c-btn-cancel');
+
+        titleEl.textContent = title;
+        descEl.textContent = desc || '';
+        
+        modal.style.display = 'flex';
+
+        const close = () => { modal.style.display = 'none'; };
+
+        // 點擊背景關閉
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                close();
+                resolve({ action: 'cancel' });
+            }
+        };
+        
+        // 重新綁定按鈕事件
+        btnConfirm.onclick = () => {
+            close();
+            resolve({ action: 'confirm' });
+        };
+        
+        btnCancel.onclick = () => {
+            close();
+            resolve({ action: 'cancel' });
+        };
+    });
+}
+
 // 1. 通用異步視窗 (Promise-based Modal)
 function openUniversalModal({ title, desc, defaultValue, showDelete, hideInput }) {
     return new Promise((resolve) => {
@@ -927,14 +964,14 @@ async function renderHistory() {
         // [新增] 垃圾桶刪除邏輯
         deleteBtn.onclick = async (e) => {
             e.stopPropagation(); // 避免觸發展開
-            const confirmDelete = await openUniversalModal({
-                title: '刪除紀錄',
-                desc: `確定要刪除「${story.title}」嗎？無法復原。`,
-                defaultValue: '',
-                showDelete: true // 這裡借用 Modal 的確認按鈕邏輯
+            
+            // [修改] 改用專用的確認視窗 (HTML 中真的沒有輸入框)
+            const result = await openConfirmModal({
+                title: '刪除內容',
+                desc: `確定要刪除「${story.title}」嗎？`
             });
 
-            if (confirmDelete.action === 'delete') {
+            if (result.action === 'confirm') {
                 if (isCloudMode && currentUser) {
                     await db.collection('users').doc(currentUser.uid).collection('stories').doc(String(story.id)).delete();
                 } else {
