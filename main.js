@@ -298,21 +298,31 @@ function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修
         }
 
         // 2. 建立選項
-        const allOptions = ['隨機選取', ...options];
+        const allOptions = ['隨機選取', '不設定', ...options];
         
         allOptions.forEach(opt => {
             const item = document.createElement('div');
             item.className = 'selection-item';
             
             const textSpan = document.createElement('span');
-            textSpan.textContent = opt === '隨機選取' ? '🎲 隨機選取' : opt;
-            if (opt === '隨機選取') textSpan.style.color = '#8fa3ad';
+            
+            // [修改] 針對特殊選項設定顯示文字與顏色
+            if (opt === '隨機選取') {
+                textSpan.textContent = '🎲 隨機選取';
+                textSpan.style.color = '#8fa3ad';
+            } else if (opt === '不設定') {
+                textSpan.textContent = '🚫 不設定 (AI 將忽略此項)';
+                textSpan.style.color = '#bfaea8'; // 使用莫蘭迪粉/灰色標示
+            } else {
+                textSpan.textContent = opt;
+            }
             
             item.appendChild(textSpan);
 
             // [新增] 長按刪除邏輯
             let isLongPress = false;
-            if (onDelete && opt !== '隨機選取') {
+            // [修改] 確保 隨機選取 與 不設定 不能被刪除
+            if (onDelete && opt !== '隨機選取' && opt !== '不設定') {
                 addLongPressEvent(item, async () => {
                     isLongPress = true; // 標記為長按，防止觸發 click
                     
@@ -337,11 +347,12 @@ function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修
 
             item.onclick = () => {
                 if (isLongPress) return; // 如果是長按觸發的，忽略這次點擊
+                // 如果選的是「隨機選取」，值為空字串；如果選「不設定」，值就是「不設定」
                 onSelect(opt === '隨機選取' ? '' : opt);
                 closeWithBack();
             };
             listEl.appendChild(item);
-        });
+        });;
 
         // 關閉按鈕與背景點擊
         btnClose.onclick = closeWithBack;
@@ -609,6 +620,9 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
             const select = document.getElementById(selectId);
             let val = select.value;
 
+            // [新增] 如果使用者選擇了「不設定」，則跳過此項目，不加入 Prompt
+            if (val === '不設定') continue;
+
             if (!val) {
                 val = content[Math.floor(Math.random() * content.length)];
             }
@@ -624,6 +638,9 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
                 const selectId = `select-${cat}-${subCat}`;
                 const select = document.getElementById(selectId);
                 let val = select.value;
+
+                // [新增] 如果使用者選擇了「不設定」，則跳過此項目，不加入 Prompt
+                if (val === '不設定') continue;
 
                 if (!val) {
                     val = items[Math.floor(Math.random() * items.length)];
