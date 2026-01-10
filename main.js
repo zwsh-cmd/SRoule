@@ -190,7 +190,7 @@ function renderDropdownRow(parent, cat, subCat, items) {
     // 加入預設選項 (隨機)
     const defaultOpt = document.createElement('option');
     defaultOpt.value = "";
-    defaultOpt.text = "隨機選取 / 下拉選擇 / 新增選項";
+    defaultOpt.text = "隨機選取";
     select.appendChild(defaultOpt);
 
     items.forEach(item => {
