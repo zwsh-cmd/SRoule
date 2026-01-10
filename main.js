@@ -182,13 +182,26 @@ function renderDropdownRow(parent, cat, subCat, items) {
         openSelectionModal(
             subCat || cat, 
             items, 
-            (selectedVal) => {
-                // 更新顯示與數值
+            (selectedVal) => { // onSelect
                 fakeSelect.textContent = selectedVal || '隨機選取';
                 fakeSelect.dataset.value = selectedVal;
                 fakeSelect.style.color = selectedVal ? '#5e6b75' : '#888';
             },
-            () => addItemViaPrompt(cat, subCat) // [新增] 傳入新增功能
+            () => addItemViaPrompt(cat, subCat), // onAdd
+            (valToDelete) => { // [新增] onDelete
+                const idx = items.indexOf(valToDelete);
+                if (idx > -1) {
+                    items.splice(idx, 1); // 刪除資料
+                    saveData(appData); // 存檔
+                    
+                    // 如果刪除的是當前選中的值，重置為隨機
+                    if (fakeSelect.dataset.value === valToDelete) {
+                        fakeSelect.textContent = '隨機選取';
+                        fakeSelect.dataset.value = '';
+                        fakeSelect.style.color = '#888';
+                    }
+                }
+            }
         );
     };
 
@@ -223,7 +236,7 @@ function renderDropdownRow(parent, cat, subCat, items) {
 // --- 編輯與互動功能區 (原生 App 風格) ---
 
 // -1. 自定義選擇清單視窗 (取代原生 Select)
-function openSelectionModal(title, options, onSelect, onAdd) {
+function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修改] 增加 onDelete 參數
     return new Promise((resolve) => {
         const modal = document.getElementById('selection-modal');
         const titleEl = document.getElementById('s-modal-title');
@@ -245,6 +258,9 @@ function openSelectionModal(title, options, onSelect, onAdd) {
         };
 
         const onPopState = () => {
+            // [修正] 關鍵邏輯：如果現在網址是 #selection (表示是從 #confirm 或其他視窗退回來)，不關閉此視窗
+            if (location.hash === '#selection') return;
+
             modal.style.display = 'none';
             window.removeEventListener('popstate', onPopState);
             resolve(null);
@@ -252,18 +268,22 @@ function openSelectionModal(title, options, onSelect, onAdd) {
         window.addEventListener('popstate', onPopState);
 
         const closeWithBack = () => {
-            history.back(); // 觸發 popstate 來關閉
+            // 如果當前已經不是 #selection (例如已經按了返回)，就不要再 back
+            if (location.hash === '#selection') {
+                history.back(); 
+            } else {
+                close();
+            }
         };
 
-        // [修改] 1. 將「新增選項」放在列表最上方
+        // 1. 將「新增選項」放在列表最上方
         if (onAdd) {
             const addItem = document.createElement('div');
             addItem.className = 'selection-item';
-            addItem.style.color = 'var(--primary-color)'; // 使用 APP 主題色
+            addItem.style.color = 'var(--primary-color)';
             addItem.style.fontWeight = 'bold';
             addItem.style.display = 'flex';
             addItem.style.alignItems = 'center';
-            // 使用 span 確保字體大小一致 (105%)
             addItem.innerHTML = '<span style="font-size:105%">➕ 新增選項...</span>';
             
             addItem.onclick = () => {
@@ -273,23 +293,46 @@ function openSelectionModal(title, options, onSelect, onAdd) {
             listEl.appendChild(addItem);
         }
 
-        // [修改] 2. 移除重複的標題列 (舊的 headerDiv 已刪除)
-
-        // 3. 建立選項
+        // 2. 建立選項
         const allOptions = ['隨機選取', ...options];
         
         allOptions.forEach(opt => {
             const item = document.createElement('div');
             item.className = 'selection-item';
             
-            // 包一層 span 控制字體
             const textSpan = document.createElement('span');
             textSpan.textContent = opt === '隨機選取' ? '🎲 隨機選取' : opt;
             if (opt === '隨機選取') textSpan.style.color = '#8fa3ad';
             
             item.appendChild(textSpan);
 
+            // [新增] 長按刪除邏輯
+            let isLongPress = false;
+            if (onDelete && opt !== '隨機選取') {
+                addLongPressEvent(item, async () => {
+                    isLongPress = true; // 標記為長按，防止觸發 click
+                    
+                    // 開啟確認視窗 (會推入 #confirm，網址變成 #selection#confirm)
+                    const confirm = await openConfirmModal({
+                        title: '刪除選項',
+                        desc: `確定要刪除「${opt}」嗎？`
+                    });
+
+                    // 當 openConfirmModal 關閉時，它會執行 history.back()，網址變回 #selection
+                    // 此時 onPopState 會觸發，但我們會因為 hash 檢測而攔截，讓選單視窗保持開啟
+
+                    if (confirm.action === 'confirm') {
+                        onDelete(opt);
+                        item.remove(); // 直接從 DOM 移除，不用重整
+                    }
+                    
+                    // 延遲重置，避免手指抬起瞬間觸發 click
+                    setTimeout(() => { isLongPress = false; }, 300);
+                });
+            }
+
             item.onclick = () => {
+                if (isLongPress) return; // 如果是長按觸發的，忽略這次點擊
                 onSelect(opt === '隨機選取' ? '' : opt);
                 closeWithBack();
             };
