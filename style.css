@@ -225,3 +225,57 @@ select:focus {
     height: 24px;
     stroke: var(--text-color);
 }
+
+/* 自定義選擇清單樣式 */
+.selection-item {
+    padding: 10px 20px;       /* 縮小的列高 */
+    font-size: 0.9rem;        /* 基礎字體大小 */
+    color: var(--text-color);
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.selection-item:active {
+    background-color: #f0f2f5;
+}
+
+/* 特別縮小的選項文字 (您要求的 0.7 倍效果) */
+.selection-item span {
+    font-size: 85%; 
+}
+
+/* 選單內的分類標題列 */
+.selection-header-row {
+    background-color: #e3e8eb;
+    color: var(--primary-color);
+    font-size: 0.85rem;
+    font-weight: bold;
+    padding: 8px 20px;
+    text-align: center;
+}
+
+/* 模擬下拉選單的觸發按鈕 (偽裝成 Select) */
+.fake-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: #fff;
+    color: #888;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-sizing: border-box; 
+}
+/* 畫一個三角形箭頭 */
+.fake-select::after {
+    content: '';
+    width: 0; 
+    height: 0; 
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #8fa3ad;
+}
