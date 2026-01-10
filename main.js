@@ -1007,9 +1007,47 @@ async function renderHistory() {
             }).catch(err => alert('複製失敗'));
         };
 
+        // [新增] 長按標題重新命名邏輯
+        addLongPressEvent(headerArea, async () => {
+            isLongPress = true; // 標記為長按，避免觸發點擊展開
+
+            // 使用 openUniversalModal (帶有輸入框的視窗)
+            const result = await openUniversalModal({
+                title: '重新命名',
+                desc: '請輸入新的標題：',
+                defaultValue: story.title,
+                showDelete: false,
+                hideInput: false
+            });
+
+            if (result.action === 'confirm' && result.value) {
+                const newTitle = result.value.trim();
+                // 只有當標題真的有改變時才儲存
+                if (newTitle && newTitle !== story.title) {
+                    if (isCloudMode && currentUser) {
+                        // 雲端更新
+                        await db.collection('users').doc(currentUser.uid).collection('stories').doc(String(story.id)).update({ title: newTitle });
+                    } else {
+                        // 本地更新
+                        const currentStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
+                        const targetIndex = currentStories.findIndex(s => s.id === story.id);
+                        if (targetIndex !== -1) {
+                            currentStories[targetIndex].title = newTitle;
+                            localStorage.setItem('saved_stories', JSON.stringify(currentStories));
+                        }
+                    }
+                    renderHistory(); // 重新渲染列表以顯示新標題
+                }
+            }
+
+            // 延遲重置長按標記，防止手指放開瞬間觸發 click
+            setTimeout(() => { isLongPress = false; }, 500);
+        });
+
         // 點擊展開邏輯 (加入 hash 變更)
         headerArea.onclick = () => {
-            if (isLongPress) return;
+            if (isLongPress) return; // 如果是長按，就不執行展開
+            
             // 關鍵：改變網址 hash 為 #detail
             history.pushState({ page: 'detail' }, 'Detail', '#detail');
             
