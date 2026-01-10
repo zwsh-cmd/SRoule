@@ -7,6 +7,8 @@ let generatedResult = null;
 let currentUser = null; // 當前使用者
 let isCloudMode = false; // 雲端模式狀態
 
+let currentSearchQuery = ''; // [新增] 紀錄目前的搜尋關鍵字
+
 const container = document.getElementById('categories-container');
 
 // 初始化監聽器
@@ -1018,6 +1020,10 @@ function goHome() {
     const btnBack = document.getElementById('btn-back-home');
     if(btnBack) btnBack.textContent = '返回首頁';
     
+    // [新增] 回到首頁時，隱藏搜尋按鈕
+    const btnSearch = document.getElementById('btn-search');
+    if(btnSearch) btnSearch.style.display = 'none';
+
     // [已移除] 自動捲動到頂部的指令，保持畫面位置
 }
 
@@ -1038,6 +1044,10 @@ window.addEventListener('popstate', (event) => {
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
         
+        // 確保搜尋按鈕顯示
+        const btnSearch = document.getElementById('btn-search');
+        if(btnSearch) btnSearch.style.display = 'block';
+
         // 確保列表顯示，詳情隱藏
         document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
         document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
@@ -1045,30 +1055,57 @@ window.addEventListener('popstate', (event) => {
         const btnBack = document.getElementById('btn-back-home');
         if(btnBack) btnBack.textContent = '返回首頁';
 
-        // [新增] 如果有紀錄上次閱讀的項目，則捲動到該項目位置 (讓該項目置頂)
-        if (window.lastViewedStoryId) {
-            const targetItem = document.getElementById('history-story-' + window.lastViewedStoryId);
-            if (targetItem) {
-                // 使用 setTimeout 確保畫面渲染完畢後才捲動
-                setTimeout(() => {
-                    // [修正] 改用 scrollTo 並扣除標題列高度 (設定為 90px)，解決被遮擋問題
-                    const headerOffset = 90;
-                    const elementPosition = targetItem.getBoundingClientRect().top;
-                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                    
-                    window.scrollTo({ top: offsetPosition, behavior: 'auto' });
-                }, 10);
-            }
-            window.lastViewedStoryId = null; // 清除紀錄
-        }
+        // [重構] 捲動邏輯 (共用)
+        handleScrollToLastItem();
     }
+    // [新增] 搜尋結果頁面路由
+    else if (location.hash === '#search') {
+        if(mainView) mainView.style.display = 'none';
+        if(historyView) historyView.style.display = 'block';
+
+        // 搜尋模式下，也要顯示搜尋按鈕 (方便再次搜尋)
+        const btnSearch = document.getElementById('btn-search');
+        if(btnSearch) btnSearch.style.display = 'block';
+
+        // 呼叫 renderHistory 帶入目前的搜尋字串
+        renderHistory(currentSearchQuery);
+
+        // 確保列表顯示，詳情隱藏
+        document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
+        document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
+
+        const btnBack = document.getElementById('btn-back-home');
+        if(btnBack) btnBack.textContent = '返回列表'; // 搜尋模式下改為返回列表(其實是回到完整歷史)
+
+        // 執行捲動邏輯 (從內容回到搜尋列表時，也要定位)
+        handleScrollToLastItem();
+    }
+
+// [新增] 獨立出捲動邏輯，供 #history 與 #search 共用
+function handleScrollToLastItem() {
+    if (window.lastViewedStoryId) {
+        const targetItem = document.getElementById('history-story-' + window.lastViewedStoryId);
+        if (targetItem) {
+            setTimeout(() => {
+                const headerOffset = 90;
+                const elementPosition = targetItem.getBoundingClientRect().top;
+                const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                window.scrollTo({ top: offsetPosition, behavior: 'auto' });
+            }, 50); // 微調延遲時間確保 DOM 渲染
+        }
+        window.lastViewedStoryId = null;
+    }
+}
 });
 
 // 3. 設定「歷史紀錄」按鈕 (加入 #history)
 const btnHistory = document.getElementById('btn-history');
 if (btnHistory) {
     btnHistory.onclick = () => {
-        // [修正] 關鍵：如果已經在歷史頁面，就不重複加入堆疊，避免返回鍵卡住
+        // 顯示搜尋按鈕
+        const btnSearch = document.getElementById('btn-search');
+        if(btnSearch) btnSearch.style.display = 'block';
+
         if (location.hash === '#history') {
             renderHistory(); 
             return;
@@ -1085,8 +1122,33 @@ if (btnHistory) {
         if(historyView) historyView.style.display = 'block';
         renderHistory();
         
-        // [新增] 初次進入歷史頁面，強制捲動到最頂端
         window.scrollTo({ top: 0, behavior: 'auto' });
+    };
+}
+
+// [新增] 搜尋按鈕邏輯
+const btnSearch = document.getElementById('btn-search');
+if (btnSearch) {
+    btnSearch.onclick = async () => {
+        const result = await openUniversalModal({
+            title: '搜尋歷史紀錄',
+            desc: '請輸入標題或內容關鍵字：',
+            defaultValue: currentSearchQuery, // 帶入上次搜尋的字
+            showDelete: false
+        });
+
+        if (result.action === 'confirm') {
+            const query = result.value.trim();
+            if (query) {
+                currentSearchQuery = query;
+                // 推入搜尋狀態
+                history.pushState({ page: 'search' }, 'Search', '#search');
+                
+                // 執行搜尋渲染
+                renderHistory(currentSearchQuery);
+                window.scrollTo({ top: 0, behavior: 'auto' });
+            }
+        }
     };
 }
 
@@ -1104,14 +1166,18 @@ if (btnBackHome) {
 }
 
 // --- 歷史紀錄渲染 (RenderHistory) ---
-async function renderHistory() {
+// [修改] 增加 searchQuery 參數，預設為空字串
+async function renderHistory(searchQuery = '') {
     const list = document.getElementById('history-list');
     if (!list) return;
 
     list.innerHTML = '<div style="text-align:center; padding:20px;">載入中...</div>';
     
     const btnBack = document.getElementById('btn-back-home');
-    if(btnBack && location.hash !== '#detail') btnBack.textContent = '返回首頁';
+    // 如果是在搜尋模式，按鈕文字改成「返回列表」
+    if(btnBack && location.hash !== '#detail') {
+        btnBack.textContent = (location.hash === '#search') ? '返回列表' : '返回首頁';
+    }
 
     let stories = [];
 
@@ -1130,10 +1196,23 @@ async function renderHistory() {
         stories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
     }
 
+    // [新增] 執行篩選邏輯
+    if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        stories = stories.filter(s => 
+            (s.title && s.title.toLowerCase().includes(q)) || 
+            (s.settings_list && s.settings_list.toLowerCase().includes(q)) ||
+            (s.story_outline && s.story_outline.toLowerCase().includes(q))
+        );
+    }
+
     list.innerHTML = '';
 
     if (stories.length === 0) {
-        list.innerHTML = '<div style="text-align:center; color:#888; margin-top:50px;">這裡空空的 (尚無紀錄)</div>';
+        const emptyMsg = searchQuery 
+            ? `找不到包含「${searchQuery}」的故事` 
+            : '這裡空空的 (尚無紀錄)';
+        list.innerHTML = `<div style="text-align:center; color:#888; margin-top:50px;">${emptyMsg}</div>`;
         return;
     }
 
