@@ -94,29 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 2. 初始化：渲染畫面
 function renderApp() {
-    // [新增] 注入自定義樣式，嘗試覆蓋下拉選單的原生藍色 (註：依瀏覽器支援度而定)
-    if (!document.getElementById('custom-dropdown-style')) {
-        const style = document.createElement('style');
-        style.id = 'custom-dropdown-style';
-        style.textContent = `
-            /* 下拉選單選項樣式 */
-            select option {
-                font-size: 70%;          /* 文字大小改為 0.7 倍 */
-                padding: 4px 7px;        /* 列高縮小約 0.7 倍 */
-                color: #5e6b75;          /* APP 風格深灰文字 */
-                background-color: #fff;  /* 背景白 */
-            }
-
-            /* 嘗試修改 Option 的選取與懸停顏色 (主要針對 Firefox 或支援的 Webview) */
-            select option:checked,
-            select option:hover {
-                background-color: #8fa3ad !important; /* 莫蘭迪藍灰 */
-                color: white !important;
-                box-shadow: 0 0 10px 100px #8fa3ad inset; /* 強制覆蓋背景 */
-            }
-        `;
-        document.head.appendChild(style);
-    }
+    
 
     container.innerHTML = '';
     
@@ -175,15 +153,16 @@ function renderApp() {
     container.appendChild(extraBox);
 }
 
-// 3. 渲染下拉選單列 (Select + 新增按鈕)
+// 3. 渲染下拉選單列 (改用自定義視窗)
 function renderDropdownRow(parent, cat, subCat, items) {
     const row = document.createElement('div');
     row.className = 'sub-category-row';
 
+    // 標題 (小類別)
     if (subCat) {
         const label = document.createElement('div');
         label.className = 'sub-title';
-        label.textContent = subCat; // [修改] 直接顯示標題
+        label.textContent = subCat; 
         addLongPressEvent(label, () => renameCategory(cat, subCat));
         row.appendChild(label);
     }
@@ -191,37 +170,35 @@ function renderDropdownRow(parent, cat, subCat, items) {
     const wrapper = document.createElement('div');
     wrapper.className = 'select-wrapper';
 
-    // 建立 Select (下拉選單)
-    const select = document.createElement('select');
-    select.id = `select-${cat}-${subCat || 'main'}`;
-    
-    // [新增] 下拉選單標題列 (顯示類別名稱)
-    const titleOpt = document.createElement('option');
-    titleOpt.text = `── ${subCat || cat} ──`; // 使用符號裝飾
-    titleOpt.disabled = true; // 設為不可選，僅作顯示用
-    titleOpt.style.color = '#8fa3ad'; // APP 主色調 (莫蘭迪藍灰)
-    titleOpt.style.fontWeight = 'bold'; // 加粗
-    select.appendChild(titleOpt);
+    // [修改] 建立 "偽" 下拉選單 (div 模擬)
+    const fakeSelect = document.createElement('div');
+    fakeSelect.className = 'fake-select';
+    fakeSelect.id = `select-${cat}-${subCat || 'main'}`; // 保留 ID 供生成邏輯抓取
+    fakeSelect.textContent = '隨機選取'; 
+    fakeSelect.dataset.value = ''; 
 
-    // 加入預設選項 (隨機)
-    const defaultOpt = document.createElement('option');
-    defaultOpt.value = "";
-    defaultOpt.text = "隨機選取";
-    select.appendChild(defaultOpt);
+    // 點擊開啟視窗
+    fakeSelect.onclick = () => {
+        openSelectionModal(subCat || cat, items, (selectedVal) => {
+            // 更新顯示與數值
+            fakeSelect.textContent = selectedVal || '隨機選取';
+            fakeSelect.dataset.value = selectedVal;
+            fakeSelect.style.color = selectedVal ? '#5e6b75' : '#888';
+        });
+    };
 
-    items.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item;
-        option.text = item;
-        select.appendChild(option);
+    // [關鍵] 定義 .value 屬性，騙過 generateStory 的取值邏輯
+    Object.defineProperty(fakeSelect, 'value', {
+        get: function() { return this.dataset.value; },
+        set: function(v) { 
+            this.dataset.value = v; 
+            this.textContent = v || '隨機選取';
+            this.style.color = v ? '#5e6b75' : '#888';
+        }
     });
-    
-    // 綁定長按事件到 Select 上，用於刪除選項
-    // 注意：部分手機瀏覽器對 Select 的事件支援有限，但我們盡量支援
-    select.addEventListener('change', (e) => {
-        // 使用者選取後，如果不喜歡可以長按刪除，或是這裡只做選取
-    });
-    addLongPressEvent(select, () => showDeleteMenu(cat, subCat, select.value));
+
+    // 綁定長按 (編輯選項)
+    addLongPressEvent(fakeSelect, () => showDeleteMenu(cat, subCat, fakeSelect.dataset.value));
 
     // 新增按鈕 (+)
     const addBtn = document.createElement('button');
@@ -232,7 +209,7 @@ function renderDropdownRow(parent, cat, subCat, items) {
     addBtn.style.fontSize = '1.2rem';
     addBtn.onclick = () => addItemViaPrompt(cat, subCat);
 
-    wrapper.appendChild(select);
+    wrapper.appendChild(fakeSelect);
     wrapper.appendChild(addBtn);
     row.appendChild(wrapper);
     parent.appendChild(row);
@@ -241,6 +218,74 @@ function renderDropdownRow(parent, cat, subCat, items) {
 // --- 編輯與互動功能區 (原生 App 風格) ---
 
 // 0. 專用確認視窗 (無輸入框，純確認)
+// -1. 自定義選擇清單視窗 (取代原生 Select)
+function openSelectionModal(title, options, onSelect) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('selection-modal');
+        const titleEl = document.getElementById('s-modal-title');
+        const listEl = document.getElementById('s-modal-list');
+        const btnClose = document.getElementById('s-btn-close');
+
+        titleEl.textContent = title;
+        listEl.innerHTML = ''; // 清空舊選項
+
+        // 加入歷史狀態 (支援返回鍵關閉)
+        history.pushState({ modal: 'selection' }, 'Selection', '#selection');
+        modal.style.display = 'flex';
+
+        // 統一關閉邏輯
+        const close = () => {
+            modal.style.display = 'none';
+            window.removeEventListener('popstate', onPopState);
+            resolve(null);
+        };
+
+        const onPopState = () => {
+            modal.style.display = 'none';
+            window.removeEventListener('popstate', onPopState);
+            resolve(null);
+        };
+        window.addEventListener('popstate', onPopState);
+
+        const closeWithBack = () => {
+            history.back(); // 觸發 popstate 來關閉
+        };
+
+        // 1. 建立標題列
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'selection-header-row';
+        headerDiv.textContent = `── ${title} ──`;
+        listEl.appendChild(headerDiv);
+
+        // 2. 建立選項
+        const allOptions = ['隨機選取', ...options];
+        
+        allOptions.forEach(opt => {
+            const item = document.createElement('div');
+            item.className = 'selection-item';
+            
+            // 包一層 span 以縮小字體
+            const textSpan = document.createElement('span');
+            textSpan.textContent = opt === '隨機選取' ? '🎲 隨機選取' : opt;
+            if (opt === '隨機選取') textSpan.style.color = '#8fa3ad';
+            
+            item.appendChild(textSpan);
+
+            item.onclick = () => {
+                onSelect(opt === '隨機選取' ? '' : opt);
+                closeWithBack();
+            };
+            listEl.appendChild(item);
+        });
+
+        // 關閉按鈕與背景點擊
+        btnClose.onclick = closeWithBack;
+        modal.onclick = (e) => {
+            if (e.target === modal) closeWithBack();
+        };
+    });
+}
+
 function openConfirmModal({ title, desc }) {
     return new Promise((resolve) => {
         const modal = document.getElementById('confirm-modal');
