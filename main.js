@@ -1044,6 +1044,18 @@ window.addEventListener('popstate', (event) => {
         
         const btnBack = document.getElementById('btn-back-home');
         if(btnBack) btnBack.textContent = '返回首頁';
+
+        // [新增] 如果有紀錄上次閱讀的項目，則捲動到該項目位置 (讓該項目置頂)
+        if (window.lastViewedStoryId) {
+            const targetItem = document.getElementById('history-story-' + window.lastViewedStoryId);
+            if (targetItem) {
+                // 使用 setTimeout 確保畫面渲染完畢後才捲動
+                setTimeout(() => {
+                    targetItem.scrollIntoView({ block: 'start' });
+                }, 0);
+            }
+            window.lastViewedStoryId = null; // 清除紀錄
+        }
     }
 });
 
@@ -1067,6 +1079,9 @@ if (btnHistory) {
         
         if(historyView) historyView.style.display = 'block';
         renderHistory();
+        
+        // [新增] 初次進入歷史頁面，強制捲動到最頂端
+        window.scrollTo({ top: 0, behavior: 'auto' });
     };
 }
 
@@ -1120,6 +1135,8 @@ async function renderHistory() {
     stories.forEach(story => {
         const item = document.createElement('div');
         item.className = 'history-item';
+        // [新增] 給每個項目一個唯一的 ID，方便返回時定位
+        item.id = 'history-story-' + story.id;
         
         const listContent = story.settings_list || '舊資料無詳細清單';
         const threeActContent = story.three_act_structure || '舊資料無三幕劇結構';
@@ -1247,6 +1264,9 @@ async function renderHistory() {
         headerArea.onclick = () => {
             if (isLongPress) return; // 如果是長按，就不執行展開
             
+            // [新增] 紀錄目前點擊的故事 ID，供返回時使用
+            window.lastViewedStoryId = story.id;
+
             // 關鍵：改變網址 hash 為 #detail
             history.pushState({ page: 'detail' }, 'Detail', '#detail');
             
