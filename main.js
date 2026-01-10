@@ -177,14 +177,19 @@ function renderDropdownRow(parent, cat, subCat, items) {
     fakeSelect.textContent = '隨機選取'; 
     fakeSelect.dataset.value = ''; 
 
-    // 點擊開啟視窗
+    // 點擊觸發自定義視窗
     fakeSelect.onclick = () => {
-        openSelectionModal(subCat || cat, items, (selectedVal) => {
-            // 更新顯示與數值
-            fakeSelect.textContent = selectedVal || '隨機選取';
-            fakeSelect.dataset.value = selectedVal;
-            fakeSelect.style.color = selectedVal ? '#5e6b75' : '#888';
-        });
+        openSelectionModal(
+            subCat || cat, 
+            items, 
+            (selectedVal) => {
+                // 更新顯示與數值
+                fakeSelect.textContent = selectedVal || '隨機選取';
+                fakeSelect.dataset.value = selectedVal;
+                fakeSelect.style.color = selectedVal ? '#5e6b75' : '#888';
+            },
+            () => addItemViaPrompt(cat, subCat) // [新增] 傳入新增功能
+        );
     };
 
     // [關鍵] 定義 .value 屬性，騙過 generateStory 的取值邏輯
@@ -217,9 +222,8 @@ function renderDropdownRow(parent, cat, subCat, items) {
 
 // --- 編輯與互動功能區 (原生 App 風格) ---
 
-// 0. 專用確認視窗 (無輸入框，純確認)
 // -1. 自定義選擇清單視窗 (取代原生 Select)
-function openSelectionModal(title, options, onSelect) {
+function openSelectionModal(title, options, onSelect, onAdd) {
     return new Promise((resolve) => {
         const modal = document.getElementById('selection-modal');
         const titleEl = document.getElementById('s-modal-title');
@@ -251,20 +255,34 @@ function openSelectionModal(title, options, onSelect) {
             history.back(); // 觸發 popstate 來關閉
         };
 
-        // 1. 建立標題列
-        const headerDiv = document.createElement('div');
-        headerDiv.className = 'selection-header-row';
-        headerDiv.textContent = `── ${title} ──`;
-        listEl.appendChild(headerDiv);
+        // [修改] 1. 將「新增選項」放在列表最上方
+        if (onAdd) {
+            const addItem = document.createElement('div');
+            addItem.className = 'selection-item';
+            addItem.style.color = 'var(--primary-color)'; // 使用 APP 主題色
+            addItem.style.fontWeight = 'bold';
+            addItem.style.display = 'flex';
+            addItem.style.alignItems = 'center';
+            // 使用 span 確保字體大小一致 (105%)
+            addItem.innerHTML = '<span style="font-size:105%">➕ 新增選項...</span>';
+            
+            addItem.onclick = () => {
+                closeWithBack(); // 先關閉選單視窗
+                setTimeout(onAdd, 300); // 稍候開啟新增視窗
+            };
+            listEl.appendChild(addItem);
+        }
 
-        // 2. 建立選項
+        // [修改] 2. 移除重複的標題列 (舊的 headerDiv 已刪除)
+
+        // 3. 建立選項
         const allOptions = ['隨機選取', ...options];
         
         allOptions.forEach(opt => {
             const item = document.createElement('div');
             item.className = 'selection-item';
             
-            // 包一層 span 以縮小字體
+            // 包一層 span 控制字體
             const textSpan = document.createElement('span');
             textSpan.textContent = opt === '隨機選取' ? '🎲 隨機選取' : opt;
             if (opt === '隨機選取') textSpan.style.color = '#8fa3ad';
