@@ -240,9 +240,9 @@ select:focus {
     background-color: #f0f2f5;
 }
 
-/* 特別縮小的選項文字 (您要求的 0.7 倍效果) */
+/* [修改] 放大選項文字 (約原來的 1.2 倍) */
 .selection-item span {
-    font-size: 85%; 
+    font-size: 105%; 
 }
 
 /* 選單內的分類標題列 */
