@@ -99,6 +99,14 @@ function renderApp() {
         const style = document.createElement('style');
         style.id = 'custom-dropdown-style';
         style.textContent = `
+            /* 下拉選單選項樣式 */
+            select option {
+                font-size: 90%;          /* 文字大小改為 0.9 倍 */
+                padding: 6px 10px;       /* 縮減列高 (內距改小) */
+                color: #5e6b75;          /* APP 風格深灰文字 */
+                background-color: #fff;  /* 背景白 */
+            }
+
             /* 嘗試修改 Option 的選取與懸停顏色 (主要針對 Firefox 或支援的 Webview) */
             select option:checked,
             select option:hover {
