@@ -1051,8 +1051,13 @@ window.addEventListener('popstate', (event) => {
             if (targetItem) {
                 // 使用 setTimeout 確保畫面渲染完畢後才捲動
                 setTimeout(() => {
-                    targetItem.scrollIntoView({ block: 'start' });
-                }, 0);
+                    // [修正] 改用 scrollTo 並扣除標題列高度 (設定為 90px)，解決被遮擋問題
+                    const headerOffset = 90;
+                    const elementPosition = targetItem.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                    
+                    window.scrollTo({ top: offsetPosition, behavior: 'auto' });
+                }, 10);
             }
             window.lastViewedStoryId = null; // 清除紀錄
         }
