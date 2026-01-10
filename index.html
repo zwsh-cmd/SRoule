@@ -65,10 +65,10 @@
                 
                 <div id="user-info" style="display:none; align-items:center; gap:10px;">
                      <img id="user-avatar" src="" style="width:40px; height:40px; border-radius:50%; object-fit:cover;">
-                     <button id="btn-logout" class="secondary" style="font-size:0.9rem;">登出</button>
+                     <button id="btn-logout" class="secondary" style="font-size:0.9rem; border-radius:8px;">登出</button>
                 </div>
 
-                <button id="btn-login" style="background:#8fa3ad; color:white; width:100%; padding:10px; border:none; border-radius:20px; font-size:1rem; cursor:pointer; display:none;">
+                <button id="btn-login" style="background:#8fa3ad; color:white; width:100%; padding:10px; border:none; border-radius:8px; font-size:1rem; cursor:pointer; display:none;">
                     Google 登入
                 </button>
             </div>
@@ -77,23 +77,23 @@
             <p style="font-size:0.96rem; color:#666;">Key 僅儲存於您的瀏覽器，不會上傳。</p>
             <input type="password" id="api-key-input" placeholder="***在此貼上您的API Key***" style="width:100%; padding:12px; font-size:0.96rem; color:#888; border:1px solid #ddd; border-radius:8px; box-sizing: border-box;">
             <div style="text-align: right; margin-top: 10px;">
-                <button id="btn-close-settings" class="secondary">取消</button>
-                <button id="btn-save-key">儲存</button>
+                <button id="btn-close-settings" class="secondary" style="border-radius:8px;">取消</button>
+                <button id="btn-save-key" style="border-radius:8px;">儲存</button>
             </div>
 
             <div style="margin-top: 20px; background-color: rgba(0,0,0,0.03); margin-left: -20px; margin-right: -20px; padding: 20px; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
                 <h3 style="margin:0 0 10px 0; color:#5e6b75;">備份與還原</h3>
                 <p style="font-size:0.85rem; color:#999; margin-bottom:10px;">下載目前的類別設定，或選取檔案以還原。</p>
                 <div style="display:flex; gap:10px;">
-                    <button id="btn-backup" class="secondary" style="flex:1;">匯出備份</button>
-                    <button id="btn-restore" style="flex:1;">匯入還原</button>
+                    <button id="btn-backup" class="secondary" style="flex:1; border-radius:8px;">匯出備份</button>
+                    <button id="btn-restore" style="flex:1; border-radius:8px;">匯入還原</button>
                 </div>
                 <input type="file" id="file-input-restore" accept=".json" style="display:none;">
 
                 <hr style="margin: 20px 0; border: 0; border-top: 1px dashed #ddd;">
                 
                 <p style="font-size:0.85rem; color:#999; margin-bottom:10px;">如果類別設定出錯，可由此恢復預設值。</p>
-                <button id="btn-reset-factory" class="secondary danger" style="width:100%;">恢復原廠類別設定</button>
+                <button id="btn-reset-factory" class="secondary danger" style="width:100%; border-radius:8px;">恢復原廠類別設定</button>
             </div>
         </div>
     </div>
