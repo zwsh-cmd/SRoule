@@ -717,10 +717,15 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
         loading.style.display = 'none';
         
         // 渲染五個區塊 (新增三幕劇區塊)
+        // [修改] 在抽選清單與三幕劇之間加入「故事標題」
         storyContent.innerHTML = `
             <div style="background:#f0f2f5; padding:15px; border-radius:8px; margin-bottom:15px; font-size:0.95rem; line-height:1.6;">
                 <h4 style="margin-top:0;">📋 抽選清單</h4>
                 <div>${(generatedResult.settings_list).replace(/\n/g, '<br>')}</div>
+            </div>
+
+            <div style="text-align:center; margin: 30px 0 20px 0;">
+                <span style="font-size:1.5rem; font-weight:bold; color:#5e6b75; line-height:1.4;">《${generatedResult.story_title}》</span>
             </div>
 
             <h3>📐 三幕劇結構</h3>
