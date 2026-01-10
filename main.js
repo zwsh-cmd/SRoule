@@ -236,28 +236,40 @@ function openConfirmModal({ title, desc }) {
         titleEl.textContent = title;
         descEl.textContent = desc || '';
         
+        // [修正] 推入一個暫時的歷史狀態 #confirm
+        // 這樣按返回鍵時，只會退回 #history，而不會跳出歷史頁面
+        history.pushState({ modal: 'confirm' }, 'Confirm', '#confirm');
         modal.style.display = 'flex';
 
-        const close = () => { modal.style.display = 'none'; };
+        // 監聽：當使用者按手機/瀏覽器「返回鍵」時觸發
+        const onPopState = (e) => {
+            modal.style.display = 'none';
+            window.removeEventListener('popstate', onPopState); // 移除監聽
+            resolve({ action: 'cancel' }); // 視為取消
+        };
 
-        // 點擊背景關閉
+        window.addEventListener('popstate', onPopState);
+
+        // 內部函式：透過按鈕關閉時，要手動退回上一頁 (消除 #confirm)
+        const closeByButton = (action) => {
+            window.removeEventListener('popstate', onPopState); // 先移除監聽，避免重複觸發
+            history.back(); // 這行會讓網址變回 #history
+            modal.style.display = 'none';
+            resolve({ action: action });
+        };
+
+        // 點擊背景 -> 取消
         modal.onclick = (e) => {
             if (e.target === modal) {
-                close();
-                resolve({ action: 'cancel' });
+                closeByButton('cancel');
             }
         };
         
-        // 重新綁定按鈕事件
-        btnConfirm.onclick = () => {
-            close();
-            resolve({ action: 'confirm' });
-        };
+        // 點擊確定
+        btnConfirm.onclick = () => closeByButton('confirm');
         
-        btnCancel.onclick = () => {
-            close();
-            resolve({ action: 'cancel' });
-        };
+        // 點擊取消
+        btnCancel.onclick = () => closeByButton('cancel');
     });
 }
 
