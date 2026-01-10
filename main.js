@@ -101,8 +101,8 @@ function renderApp() {
         style.textContent = `
             /* 下拉選單選項樣式 */
             select option {
-                font-size: 90%;          /* 文字大小改為 0.9 倍 */
-                padding: 6px 10px;       /* 縮減列高 (內距改小) */
+                font-size: 70%;          /* 文字大小改為 0.7 倍 */
+                padding: 4px 7px;        /* 列高縮小約 0.7 倍 */
                 color: #5e6b75;          /* APP 風格深灰文字 */
                 background-color: #fff;  /* 背景白 */
             }
@@ -195,6 +195,14 @@ function renderDropdownRow(parent, cat, subCat, items) {
     const select = document.createElement('select');
     select.id = `select-${cat}-${subCat || 'main'}`;
     
+    // [新增] 下拉選單標題列 (顯示類別名稱)
+    const titleOpt = document.createElement('option');
+    titleOpt.text = `── ${subCat || cat} ──`; // 使用符號裝飾
+    titleOpt.disabled = true; // 設為不可選，僅作顯示用
+    titleOpt.style.color = '#8fa3ad'; // APP 主色調 (莫蘭迪藍灰)
+    titleOpt.style.fontWeight = 'bold'; // 加粗
+    select.appendChild(titleOpt);
+
     // 加入預設選項 (隨機)
     const defaultOpt = document.createElement('option');
     defaultOpt.value = "";
