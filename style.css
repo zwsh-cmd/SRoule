@@ -279,3 +279,8 @@ select:focus {
     border-right: 5px solid transparent;
     border-top: 5px solid #8fa3ad;
 }
+
+/* [新增] 確保確認與通用視窗層級高於選擇清單 (預設 modal z-index 為 200) */
+#universal-modal, #confirm-modal {
+    z-index: 210 !important;
+}

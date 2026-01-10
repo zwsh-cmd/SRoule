@@ -287,8 +287,9 @@ function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修
             addItem.innerHTML = '<span style="font-size:105%">➕ 新增選項...</span>';
             
             addItem.onclick = () => {
-                closeWithBack(); // 先關閉選單視窗
-                setTimeout(onAdd, 300); // 稍候開啟新增視窗
+                // [修改] 直接開啟新增視窗，不關閉當前選單 (利用 z-index 覆蓋)
+                // 這樣新增完成或取消後，就會自動看到底下的選單
+                onAdd(); 
             };
             listEl.appendChild(addItem);
         }
@@ -411,7 +412,7 @@ function openUniversalModal({ title, desc, defaultValue, showDelete, hideInput }
         descEl.textContent = desc || '';
         inputEl.value = defaultValue || '';
         
-        // [修改] 支援隱藏輸入框 (用於純確認視窗)
+        // 支援隱藏輸入框
         if (hideInput) {
             inputEl.style.display = 'none';
         } else {
@@ -420,29 +421,40 @@ function openUniversalModal({ title, desc, defaultValue, showDelete, hideInput }
         
         // 設定按鈕狀態
         btnDelete.style.display = showDelete ? 'block' : 'none';
-        btnConfirm.textContent = showDelete ? '修改' : '確定'; // 如果有刪除鍵，確認鍵通常代表"修改"
+        btnConfirm.textContent = showDelete ? '修改' : '確定';
 
+        // [新增] 歷史狀態堆疊：推入 #universal，確保按返回鍵時只關閉此視窗
+        history.pushState({ modal: 'universal' }, 'Universal', '#universal');
         modal.style.display = 'flex';
         if (!hideInput) inputEl.focus();
 
-        // 事件處理 (使用一次性監聽器以免重複綁定)
-        const close = () => { modal.style.display = 'none'; };
-        
-        // 為了避免重複綁定，我們先 clone 節點或是重設 onclick
+        // 監聽返回鍵 (Popstate)
+        const onPopState = (e) => {
+            modal.style.display = 'none';
+            window.removeEventListener('popstate', onPopState); // 移除監聽
+            resolve({ action: 'cancel' });
+        };
+        window.addEventListener('popstate', onPopState);
+
+        // 內部關閉函式：透過按鈕關閉時，手動退回上一頁
+        const closeByButton = (result) => {
+            window.removeEventListener('popstate', onPopState);
+            history.back(); // 消除網址上的 #universal
+            modal.style.display = 'none';
+            resolve(result);
+        };
+
         btnConfirm.onclick = () => {
-            close();
-            resolve({ action: 'confirm', value: inputEl.value.trim() });
+            closeByButton({ action: 'confirm', value: inputEl.value.trim() });
         };
         
         btnCancel.onclick = () => {
-            close();
-            resolve({ action: 'cancel' });
+            closeByButton({ action: 'cancel' });
         };
 
         btnDelete.onclick = () => {
-            if(confirm('確定要刪除這個項目嗎？')) { // 這裡可以用原生 confirm 或再做一層，暫用原生比較快
-                close();
-                resolve({ action: 'delete' });
+            if(confirm('確定要刪除這個項目嗎？')) { 
+                closeByButton({ action: 'delete' });
             }
         };
     });
