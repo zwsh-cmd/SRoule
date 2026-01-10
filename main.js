@@ -218,17 +218,8 @@ function renderDropdownRow(parent, cat, subCat, items) {
     // 綁定長按 (編輯選項)
     addLongPressEvent(fakeSelect, () => showDeleteMenu(cat, subCat, fakeSelect.dataset.value));
 
-    // 新增按鈕 (+)
-    const addBtn = document.createElement('button');
-    addBtn.className = 'icon-btn';
-    addBtn.textContent = '+'; 
-    addBtn.title = '新增選項';
-    addBtn.style.marginLeft = '5px';
-    addBtn.style.fontSize = '1.2rem';
-    addBtn.onclick = () => addItemViaPrompt(cat, subCat);
-
+    // [修改] 已移除外部 + 號按鈕，統一由選單內新增
     wrapper.appendChild(fakeSelect);
-    wrapper.appendChild(addBtn);
     row.appendChild(wrapper);
     parent.appendChild(row);
 }
