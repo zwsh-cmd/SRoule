@@ -110,16 +110,22 @@ function renderApp() {
         addLongPressEvent(header, () => renameCategory(category, null));
         box.appendChild(header);
 
+        // 建立網格容器 (讓選項並排)
+        const gridBox = document.createElement('div');
+        gridBox.className = 'items-grid';
+
         // 判斷內容結構
         if (Array.isArray(content)) {
             // 純清單 (如 D, E)
-            renderDropdownRow(box, category, null, content);
+            renderDropdownRow(gridBox, category, null, content);
         } else {
             // 巢狀結構 (如 A, B, C)
             for (const [subCategory, items] of Object.entries(content)) {
-                renderDropdownRow(box, category, subCategory, items);
+                renderDropdownRow(gridBox, category, subCategory, items);
             }
         }
+        
+        box.appendChild(gridBox); // 將網格放入卡片
         container.appendChild(box);
     }
 
