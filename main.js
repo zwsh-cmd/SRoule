@@ -209,7 +209,7 @@ function renderDropdownRow(parent, cat, subCat, items) {
 // --- 編輯與互動功能區 (原生 App 風格) ---
 
 // 1. 通用異步視窗 (Promise-based Modal)
-function openUniversalModal({ title, desc, defaultValue, showDelete }) {
+function openUniversalModal({ title, desc, defaultValue, showDelete, hideInput }) {
     return new Promise((resolve) => {
         const modal = document.getElementById('universal-modal');
         const titleEl = document.getElementById('u-modal-title');
@@ -224,12 +224,19 @@ function openUniversalModal({ title, desc, defaultValue, showDelete }) {
         descEl.textContent = desc || '';
         inputEl.value = defaultValue || '';
         
+        // [修改] 支援隱藏輸入框 (用於純確認視窗)
+        if (hideInput) {
+            inputEl.style.display = 'none';
+        } else {
+            inputEl.style.display = 'block';
+        }
+        
         // 設定按鈕狀態
         btnDelete.style.display = showDelete ? 'block' : 'none';
         btnConfirm.textContent = showDelete ? '修改' : '確定'; // 如果有刪除鍵，確認鍵通常代表"修改"
 
         modal.style.display = 'flex';
-        inputEl.focus();
+        if (!hideInput) inputEl.focus();
 
         // 事件處理 (使用一次性監聽器以免重複綁定)
         const close = () => { modal.style.display = 'none'; };
@@ -578,19 +585,30 @@ if (modal) {
     // [新增] 備份功能 (匯出 JSON)
     const btnBackup = document.getElementById('btn-backup');
     if (btnBackup) {
-        btnBackup.onclick = () => {
-            const dataStr = JSON.stringify(appData, null, 2); // 轉成美化過的 JSON 字串
-            const blob = new Blob([dataStr], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            
-            // 產生當前時間檔名 (例: ScriptRoule_Backup_2026-01-09.json)
-            const date = new Date().toISOString().split('T')[0];
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `ScriptRoule_Backup_${date}.json`;
-            a.click();
-            
-            URL.revokeObjectURL(url); // 釋放記憶體
+        btnBackup.onclick = async () => {
+            // [修改] 加入確認視窗
+            const result = await openUniversalModal({
+                title: '匯出備份',
+                desc: '確定要下載目前的設定檔嗎？',
+                defaultValue: '',
+                showDelete: false,
+                hideInput: true
+            });
+
+            if (result.action === 'confirm') {
+                const dataStr = JSON.stringify(appData, null, 2); // 轉成美化過的 JSON 字串
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                
+                // 產生當前時間檔名 (例: ScriptRoule_Backup_2026-01-09.json)
+                const date = new Date().toISOString().split('T')[0];
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `ScriptRoule_Backup_${date}.json`;
+                a.click();
+                
+                URL.revokeObjectURL(url); // 釋放記憶體
+            }
         };
     }
 
@@ -638,12 +656,22 @@ if (modal) {
     // [Step C] 恢復原廠設定按鈕邏輯
     const btnResetFactory = document.getElementById('btn-reset-factory');
     if (btnResetFactory) {
-        btnResetFactory.onclick = () => {
-            if (confirm("⚠️ 嚴重警告 ⚠️\n\n這將會「刪除」您目前所有的分類與選項修改，並恢復成剛安裝時的樣子。\n\n(您的歷史故事紀錄不會消失，但轉盤設定會被重置)\n\n確定要執行嗎？")) {
+        btnResetFactory.onclick = async () => {
+            // [修改] 改用 APP 風格的確認視窗 (移除原生 confirm)
+            const result = await openUniversalModal({
+                title: '恢復原廠設定',
+                desc: '⚠️ 這將會「刪除」您所有的修改，並恢復成剛安裝時的樣子。(歷史紀錄會保留)\n\n確定要執行嗎？',
+                defaultValue: '',
+                showDelete: false,
+                hideInput: true
+            });
+
+            if (result.action === 'confirm') {
                 // 執行重置：深拷貝原廠設定，確保乾淨
                 appData = JSON.parse(JSON.stringify(defaultData));
                 saveData(appData);
                 renderApp();
+                // 這裡使用 alert 是為了確認執行完成，若想更一致也可改掉，但暫時保留以提示使用者
                 alert("✅ 已恢復原廠設定！");
                 history.back(); // 關閉設定視窗
             }
