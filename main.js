@@ -729,9 +729,19 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     
     // 使用 AI 生成的標題作為預設值，若沒有則使用 "未命名故事"
     const defaultTitle = generatedResult.story_title || "未命名故事";
-    const title = prompt("請為這個故事取個名字：", defaultTitle);
     
-    if (!title) return;
+    // [修改] 改用 APP 風格視窗輸入標題
+    const result = await openUniversalModal({
+        title: '儲存故事',
+        desc: '請為這個故事取個名字：',
+        defaultValue: defaultTitle,
+        showDelete: false
+    });
+
+    // 如果使用者按取消或沒有輸入內容，則不儲存
+    if (result.action !== 'confirm' || !result.value) return;
+
+    const title = result.value;
 
     const newStory = {
         id: Date.now(),
@@ -748,16 +758,40 @@ document.getElementById('btn-save').addEventListener('click', async () => {
     if (isCloudMode && currentUser) {
         try {
             await db.collection('users').doc(currentUser.uid).collection('stories').doc(String(newStory.id)).set(newStory);
-            alert("☁️ 已儲存到雲端！");
+            
+            // [修改] 改用 APP 風格視窗顯示成功訊息
+            await openUniversalModal({
+                title: '儲存成功',
+                desc: '☁️ 已儲存到雲端！',
+                defaultValue: '',
+                showDelete: false,
+                hideInput: true
+            });
+
         } catch (e) {
-            alert("雲端儲存失敗：" + e.message);
+            // [修改] 改用 APP 風格視窗顯示失敗訊息
+            await openUniversalModal({
+                title: '儲存失敗',
+                desc: '雲端儲存失敗：' + e.message,
+                defaultValue: '',
+                showDelete: false,
+                hideInput: true
+            });
         }
     } else {
         // 本地儲存邏輯
         const savedStories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
         savedStories.unshift(newStory);
         localStorage.setItem('saved_stories', JSON.stringify(savedStories));
-        alert("💾 已儲存到本地！(登入後可存到雲端)");
+        
+        // [修改] 改用 APP 風格視窗顯示成功訊息
+        await openUniversalModal({
+            title: '儲存成功',
+            desc: '💾 已儲存到本地！(登入後可存到雲端)',
+            defaultValue: '',
+            showDelete: false,
+            hideInput: true
+        });
     }
 });
 
