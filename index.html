@@ -82,22 +82,21 @@
             </div>
 
             <hr style="margin: 20px 0; border: 0; border-top: 1px dashed #ddd;">
-            <div style="margin-top: 10px;">
-                <h4 style="margin:0 0 8px 0; color:#5e6b75;">📦 備份與還原</h4>
+            <div style="margin-top: 10px; background-color: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px;">
+                <h4 style="margin:0 0 8px 0; color:#5e6b75;">備份與還原</h4>
                 <p style="font-size:0.85rem; color:#999; margin-bottom:10px;">下載目前的類別設定，或選取檔案以還原。</p>
                 <div style="display:flex; gap:10px;">
-                    <button id="btn-backup" style="flex:1; background-color:#8fa3ad; color:white;">⬇️ 匯出備份</button>
-                    <button id="btn-restore" class="secondary" style="flex:1;">⬆️ 匯入還原</button>
+                    <button id="btn-backup" style="flex:1; background-color:#8fa3ad; color:white; font-size: 0.85rem; padding: 6px 10px;">匯出備份</button>
+                    <button id="btn-restore" class="secondary" style="flex:1; font-size: 0.85rem; padding: 6px 10px;">匯入還原</button>
                 </div>
                 <input type="file" id="file-input-restore" accept=".json" style="display:none;">
             </div>
 
             <hr style="margin: 20px 0; border: 0; border-top: 1px dashed #ddd;">
             
-            <div style="margin-top: 10px;">
-                <h4 style="margin:0 0 8px 0; color:#e74c3c;">危險專區</h4>
+            <div style="margin-top: 10px; background-color: rgba(0,0,0,0.03); padding: 15px; border-radius: 8px;">
                 <p style="font-size:0.85rem; color:#999; margin-bottom:10px;">如果類別設定出錯，可由此恢復預設值。</p>
-                <button id="btn-reset-factory" class="secondary danger" style="width:100%;">⚠️ 恢復原廠類別設定</button>
+                <button id="btn-reset-factory" class="secondary danger" style="width:100%; font-size: 0.85rem; padding: 8px;">⚠️ 恢復原廠類別設定</button>
             </div>
         </div>
     </div>
