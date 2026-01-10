@@ -660,7 +660,7 @@ if (modal) {
             // [修改] 改用 APP 風格的確認視窗 (移除原生 confirm)
             const result = await openUniversalModal({
                 title: '恢復原廠設定',
-                desc: '⚠️ 這將會「刪除」您所有的修改，並恢復成剛安裝時的樣子。(歷史紀錄會保留)\n\n確定要執行嗎？',
+                desc: '⚠️ 這將會「刪除」您所有關於類別的修改，並恢復成剛安裝時的樣子。(歷史紀錄會保留)\n\n確定要執行嗎？',
                 defaultValue: '',
                 showDelete: false,
                 hideInput: true
