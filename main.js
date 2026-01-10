@@ -91,13 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// 1. 小工具：清理標題 (移除 A, B, a, b 符號)
-function cleanTitle(text) {
-    // 邏輯：移除 "A (", "a. ", ")" 這些符號
-    // 如果是 "A (主角)" -> "主角"
-    // 如果是 "a. 性別" -> "性別"
-    return text.replace(/^[A-Za-z]+\s*[\(\.]|\)$/g, '').trim();
-}
 
 // 2. 初始化：渲染畫面
 function renderApp() {
@@ -127,7 +120,7 @@ function renderApp() {
         // 大分類標題 (帶橫條底色)
         const header = document.createElement('div');
         header.className = 'category-header';
-        header.textContent = cleanTitle(category); // 只顯示乾淨的標題
+        header.textContent = category; // [修改] 直接顯示標題
         addLongPressEvent(header, () => renameCategory(category, null));
         box.appendChild(header);
 
@@ -182,7 +175,7 @@ function renderDropdownRow(parent, cat, subCat, items) {
     if (subCat) {
         const label = document.createElement('div');
         label.className = 'sub-title';
-        label.textContent = cleanTitle(subCat);
+        label.textContent = subCat; // [修改] 直接顯示標題
         addLongPressEvent(label, () => renameCategory(cat, subCat));
         row.appendChild(label);
     }
@@ -299,7 +292,7 @@ function addLongPressEvent(element, callback) {
 // 3. 修改分類標題 (長按標題) - [安全模式：僅限修改]
 async function renameCategory(cat, subCat) {
     const oldKey = subCat || cat;
-    const cleanName = cleanTitle(oldKey); 
+    const cleanName = oldKey; // [修改] 直接使用原名稱
     
     const result = await openUniversalModal({
         title: '編輯標題',
@@ -431,7 +424,7 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
                 val = content[Math.floor(Math.random() * content.length)];
             }
             
-            const title = cleanTitle(cat);
+            const title = cat; // [修改] 直接使用原標題
             currentSelection[title] = val;
             promptParts.push(`${title}: ${val}`);
             displayList.push(`<b>${title}</b>：${val}`);
@@ -447,7 +440,7 @@ document.getElementById('btn-generate').addEventListener('click', async () => {
                     val = items[Math.floor(Math.random() * items.length)];
                 }
 
-                const title = cleanTitle(subCat);
+                const title = subCat; // [修改] 直接使用原標題
                 currentSelection[title] = val;
                 promptParts.push(`${title}: ${val}`);
                 displayList.push(`<b>${title}</b>：${val}`);
