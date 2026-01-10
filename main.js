@@ -572,11 +572,20 @@ if (modal) {
     // 點擊取消時，執行瀏覽器上一頁 (會自動觸發 popstate 關閉視窗)
     if(btnClose) btnClose.onclick = () => history.back();
 
-    if(btnSaveKey) btnSaveKey.onclick = () => {
+    if(btnSaveKey) btnSaveKey.onclick = async () => {
         const key = document.getElementById('api-key-input').value.trim();
         if (key) {
             localStorage.setItem('gemini_api_key', key);
-            alert("Key 已儲存！");
+            
+            // [修改] 改用 APP 風格視窗提示
+            await openUniversalModal({
+                title: '設定已儲存',
+                desc: 'API Key 已更新完成。',
+                defaultValue: '',
+                showDelete: false,
+                hideInput: true
+            });
+            
             // 儲存成功後也執行上一頁來關閉
             history.back();
         }
@@ -626,25 +635,56 @@ if (modal) {
             if (!file) return;
 
             const reader = new FileReader();
-            reader.onload = (event) => {
+            reader.onload = async (event) => {
                 try {
                     const importedData = JSON.parse(event.target.result);
                     
-                    // [修正] 放寬檢查標準：只要是物件且裡面有資料即可，不強求特定分類名稱
-                    // (因為使用者可能已經把 "A (主角)" 改名了)
+                    // [修正] 放寬檢查標準
                     if (importedData && typeof importedData === 'object' && Object.keys(importedData).length > 0) {
-                        if (confirm("確定要還原此備份嗎？\n目前的設定將會被覆蓋。")) {
+                        // [修改] 改用 APP 風格確認視窗
+                        const confirmResult = await openUniversalModal({
+                            title: '還原確認',
+                            desc: '確定要還原此備份嗎？\n目前的設定將會被覆蓋。',
+                            defaultValue: '',
+                            showDelete: false,
+                            hideInput: true
+                        });
+
+                        if (confirmResult.action === 'confirm') {
                             appData = importedData;
                             saveData(appData); // 這會自動觸發雲端同步
                             renderApp();
-                            alert("✅ 還原成功！");
+                            
+                            // [修改] 改用 APP 風格成功視窗
+                            await openUniversalModal({
+                                title: '還原成功',
+                                desc: '設定已成功還原！',
+                                defaultValue: '',
+                                showDelete: false,
+                                hideInput: true
+                            });
+                            
                             history.back(); // 關閉設定視窗
                         }
                     } else {
-                        alert("❌ 檔案格式錯誤：這似乎不是本 App 的備份檔。");
+                        // [修改] 錯誤提示
+                        await openUniversalModal({
+                            title: '還原失敗',
+                            desc: '檔案格式錯誤：這似乎不是本 App 的備份檔。',
+                            defaultValue: '',
+                            showDelete: false,
+                            hideInput: true
+                        });
                     }
                 } catch (err) {
-                    alert("❌ 讀取失敗：" + err);
+                    // [修改] 讀取失敗提示
+                    await openUniversalModal({
+                        title: '讀取失敗',
+                        desc: '錯誤訊息：' + err,
+                        defaultValue: '',
+                        showDelete: false,
+                        hideInput: true
+                    });
                 }
                 // 清空輸入框，確保下次選同個檔案也能觸發
                 fileInputRestore.value = '';
@@ -671,8 +711,16 @@ if (modal) {
                 appData = JSON.parse(JSON.stringify(defaultData));
                 saveData(appData);
                 renderApp();
-                // 這裡使用 alert 是為了確認執行完成，若想更一致也可改掉，但暫時保留以提示使用者
-                alert("✅ 已恢復原廠設定！");
+                
+                // [修改] 改用 APP 風格成功視窗
+                await openUniversalModal({
+                    title: '重置完成',
+                    desc: '已恢復原廠類別設定！',
+                    defaultValue: '',
+                    showDelete: false,
+                    hideInput: true
+                });
+
                 history.back(); // 關閉設定視窗
             }
         };
