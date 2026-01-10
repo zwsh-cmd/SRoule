@@ -265,12 +265,19 @@ function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修
         window.addEventListener('popstate', onPopState);
 
         const closeWithBack = () => {
-            // 如果當前已經不是 #selection (例如已經按了返回)，就不要再 back
+            // [優化] 主動關閉模式：不等待 history API 回應，直接關閉 UI
+            
+            // 1. 先移除監聽，防止稍後 history.back() 再次觸發舊的邏輯
+            window.removeEventListener('popstate', onPopState);
+
+            // 2. 如果網址還是 #selection，默默地退回上一頁 (修復網址)
             if (location.hash === '#selection') {
                 history.back(); 
-            } else {
-                close();
             }
+
+            // 3. 直接關閉視窗 (解決偶發的點擊無反應問題)
+            modal.style.display = 'none';
+            resolve(null);
         };
 
         // 1. 將「新增選項」放在列表最上方
@@ -1006,8 +1013,7 @@ function goHome() {
     const btnBack = document.getElementById('btn-back-home');
     if(btnBack) btnBack.textContent = '返回首頁';
     
-    // 滾動到頂部
-    window.scrollTo({top: 0, behavior: 'smooth'});
+    // [已移除] 自動捲動到頂部的指令，保持畫面位置
 }
 
 // 2. 監聽瀏覽器返回鍵 (Popstate)
