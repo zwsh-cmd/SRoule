@@ -15,7 +15,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLogin = document.getElementById('btn-login');
     const btnLogout = document.getElementById('btn-logout');
     if (btnLogin) btnLogin.onclick = loginWithGoogle; // 來自 firebase-config.js
-    if (btnLogout) btnLogout.onclick = logout;
+    
+    // [修改] 改用自定義視窗處理登出
+    if (btnLogout) {
+        btnLogout.onclick = async () => {
+            try {
+                if (typeof auth !== 'undefined') {
+                    await auth.signOut();
+                    
+                    // 顯示 APP 風格的登出提示
+                    await openUniversalModal({
+                        title: '已登出',
+                        desc: '您已成功登出雲端帳號。',
+                        defaultValue: '',
+                        showDelete: false,
+                        hideInput: true
+                    });
+                    
+                    location.reload(); // 重新整理頁面以清除狀態
+                }
+            } catch (e) {
+                console.error("登出失敗", e);
+            }
+        };
+    }
 
     // 監聽 Firebase 狀態
     if (typeof auth !== 'undefined') {
