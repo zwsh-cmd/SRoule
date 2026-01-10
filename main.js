@@ -286,10 +286,13 @@ function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修
             addItem.style.alignItems = 'center';
             addItem.innerHTML = '<span style="font-size:105%">➕ 新增選項...</span>';
             
-            addItem.onclick = () => {
-                // [修改] 直接開啟新增視窗，不關閉當前選單 (利用 z-index 覆蓋)
-                // 這樣新增完成或取消後，就會自動看到底下的選單
-                onAdd(); 
+            addItem.onclick = async () => {
+                // [修改] 等待新增完成，如果成功回傳了值，就自動選中並回到首頁
+                const newVal = await onAdd(); 
+                if (newVal) {
+                    onSelect(newVal); // 更新選中狀態
+                    closeWithBack();  // 關閉下拉選單視窗，回到首頁
+                }
             };
             listEl.appendChild(addItem);
         }
@@ -534,7 +537,7 @@ async function addItemViaPrompt(cat, subCat) {
 
         if (arr.includes(cleanVal)) {
             alert("這個選項已經存在囉！");
-            return;
+            return null; // [修改] 重複時回傳 null
         }
 
         if (subCat) appData[cat][subCat].push(cleanVal);
@@ -549,7 +552,10 @@ async function addItemViaPrompt(cat, subCat) {
             const select = document.getElementById(selectId);
             if (select) select.value = cleanVal;
         }, 50);
+
+        return cleanVal; // [修改] 成功時回傳新值
     }
+    return null; // [修改] 取消時回傳 null
 }
 
 // 5. 編輯選項 (長按選單) - [安全模式：僅限修改]
