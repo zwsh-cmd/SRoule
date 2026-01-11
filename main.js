@@ -14,33 +14,25 @@ const container = document.getElementById('categories-container');
 
 // 初始化監聽器
 document.addEventListener('DOMContentLoaded', () => {
-    // [修正] 關閉瀏覽器預設的捲動恢復，避免與我們的手動定位衝突
+    // 關閉瀏覽器預設的捲動恢復
     if ('scrollRestoration' in history) {
         history.scrollRestoration = 'manual';
     }
 
-    // 綁定登入登出
-    const btnLogin = document.getElementById('btn-login');
+    // 綁定首頁的強制登入按鈕
+    const btnLoginMain = document.getElementById('btn-login-main');
+    if (btnLoginMain && typeof loginWithGoogle !== 'undefined') {
+        btnLoginMain.onclick = loginWithGoogle;
+    }
+
+    // 綁定設定頁面的登出按鈕
     const btnLogout = document.getElementById('btn-logout');
-    if (btnLogin) btnLogin.onclick = loginWithGoogle; // 來自 firebase-config.js
-    
-    // [修改] 改用自定義視窗處理登出
     if (btnLogout) {
         btnLogout.onclick = async () => {
             try {
                 if (typeof auth !== 'undefined') {
                     await auth.signOut();
-                    
-                    // 顯示 APP 風格的登出提示
-                    await openUniversalModal({
-                        title: '已登出',
-                        desc: '您已成功登出雲端帳號。',
-                        defaultValue: '',
-                        showDelete: false,
-                        hideInput: true
-                    });
-                    
-                    location.reload(); // 重新整理頁面以清除狀態
+                    location.reload(); // 登出後直接重整，會回到強制登入畫面
                 }
             } catch (e) {
                 console.error("登出失敗", e);
@@ -48,52 +40,69 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 監聽 Firebase 狀態
+    // [關鍵] 監聽 Firebase 狀態 (決定顯示 Login 還是 App)
     if (typeof auth !== 'undefined') {
         auth.onAuthStateChanged(user => {
+            const loginView = document.getElementById('login-view');
+            const appHeader = document.getElementById('app-header');
+            const btnGen = document.getElementById('btn-generate');
+            
+            // 設定頁面內的頭像
             const userInfo = document.getElementById('user-info');
             const userAvatar = document.getElementById('user-avatar');
-            
+            const btnLoginSettings = document.getElementById('btn-login'); // 設定頁裡的登入鈕(通常用不到但保留)
+
             if (user) {
+                // --- 已登入 ---
                 currentUser = user;
                 isCloudMode = true;
-                console.log("雲端模式:", user.displayName);
-                if (btnLogin) btnLogin.style.display = 'none';
+                console.log("使用者已登入:", user.displayName);
+
+                // 1. UI 切換：隱藏登入頁，顯示 APP
+                if (loginView) loginView.style.display = 'none';
+                if (appHeader) appHeader.style.display = 'flex';
+                if (btnGen) btnGen.style.display = 'flex';
+
+                // 2. 更新設定頁面資訊
+                if (btnLoginSettings) btnLoginSettings.style.display = 'none';
                 if (userInfo) userInfo.style.display = 'flex';
                 if (userAvatar) userAvatar.src = user.photoURL;
-                
-                // [Step B: 登入自動同步] 嘗試從雲端下載類別設定
-                const db = firebase.firestore(); // 確保取得資料庫實例
+
+                // 3. 啟動 APP 邏輯 (初始化路由)
+                // 這裡呼叫 handleInitialRoute 來決定要顯示首頁還是歷史頁
+                handleInitialRoute(); 
+
+                // 4. [雲端同步] 嘗試從雲端下載類別設定
+                const db = firebase.firestore();
                 db.collection('users').doc(user.uid).get().then(doc => {
-                    // 只有當雲端有設定時，才覆蓋本地
                     if (doc.exists && doc.data().settings) {
                         console.log("☁️ 發現雲端備份，正在還原設定...");
-                        
                         const cloudData = doc.data().settings;
-                        
-                        // [順序修正] 判斷是「真空包裝(字串)」還是「舊版資料(物件)」
                         if (typeof cloudData === 'string') {
-                            appData = JSON.parse(cloudData); // 解開真空包裝，順序完美還原
+                            appData = JSON.parse(cloudData);
                         } else {
-                            appData = cloudData; // 舊版資料相容
+                            appData = cloudData;
                         }
-                        
-                        // 更新本地暫存 (手動寫入 localStorage，避免呼叫 saveData 造成循環上傳)
                         localStorage.setItem('script_roule_data', JSON.stringify(appData));
-                        
-                        renderApp(); // 重新渲染畫面，讓設定生效
+                        renderApp(); 
                     }
                 }).catch(err => console.error("自動同步失敗:", err));
 
-                // 如果目前在歷史頁面，重新整理以讀取雲端資料
-                if (document.getElementById('history-view').style.display === 'block') {
-                    renderHistory();
-                }
             } else {
+                // --- 未登入 ---
                 currentUser = null;
                 isCloudMode = false;
-                if (btnLogin) btnLogin.style.display = 'block';
-                if (userInfo) userInfo.style.display = 'none';
+
+                // 1. UI 切換：顯示登入頁，隱藏 APP 介面
+                if (loginView) loginView.style.display = 'flex';
+                if (appHeader) appHeader.style.display = 'none';
+                if (btnGen) btnGen.style.display = 'none';
+                
+                // 隱藏其他可能開啟的視窗
+                if (mainView) mainView.style.display = 'none';
+                if (historyView) historyView.style.display = 'none';
+                const resArea = document.getElementById('result-area');
+                if (resArea) resArea.style.display = 'none';
             }
         });
     }
@@ -1472,5 +1481,4 @@ function handleInitialRoute() {
     }
 }
 
-// 啟動應用程式
-handleInitialRoute();
+
