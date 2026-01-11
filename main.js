@@ -1058,7 +1058,6 @@ window.addEventListener('popstate', (event) => {
         const btnBack = document.getElementById('btn-back-home');
         if(btnBack) btnBack.textContent = '返回首頁';
 
-        // 使用 .then() 確保渲染後捲動
         renderHistory().then(() => {
             handleScrollToLastItem();
         });
@@ -1074,12 +1073,14 @@ window.addEventListener('popstate', (event) => {
         const btnBack = document.getElementById('btn-back-home');
         if(btnBack) btnBack.textContent = '返回列表'; 
 
-        // [關鍵修正] 優先從 history.state 讀取搜尋關鍵字，如果沒有才用全域變數
-        const savedQuery = event.state && event.state.query ? event.state.query : currentSearchQuery;
-        
-        // 更新全域變數，保持同步
-        if (savedQuery) currentSearchQuery = savedQuery;
+        // [關鍵修正] 從 history.state 恢復搜尋字串，確保返回時不會變成全部歷史
+        let savedQuery = currentSearchQuery;
+        if (event.state && event.state.query) {
+            savedQuery = event.state.query;
+            currentSearchQuery = savedQuery; // 同步全域變數
+        }
 
+        // 強制帶入搜尋字串渲染
         renderHistory(savedQuery).then(() => {
             handleScrollToLastItem();
         });
@@ -1416,7 +1417,6 @@ function handleInitialRoute() {
         // 直接進入歷史模式
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
-        // 隱藏首頁元素
         const resArea = document.getElementById('result-area');
         if(resArea) resArea.style.display = 'none';
         const btnGen = document.getElementById('btn-generate');
@@ -1433,7 +1433,15 @@ function handleInitialRoute() {
         const btnGen = document.getElementById('btn-generate');
         if(btnGen) btnGen.style.display = 'none';
 
-        renderHistory(currentSearchQuery); 
+        // [關鍵修正] 嘗試從 history.state 找回搜尋關鍵字
+        // 這能解決「在搜尋頁按重新整理後，搜尋結果消失」的問題
+        let savedQuery = currentSearchQuery;
+        if (history.state && history.state.query) {
+            savedQuery = history.state.query;
+            currentSearchQuery = savedQuery;
+        }
+
+        renderHistory(savedQuery); 
     }
 }
 
