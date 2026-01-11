@@ -8,6 +8,7 @@ let currentUser = null; // 當前使用者
 let isCloudMode = false; // 雲端模式狀態
 
 let currentSearchQuery = ''; // [新增] 紀錄目前的搜尋關鍵字
+let isSearching = false; // [修正] 用於標記搜尋視窗狀態，防止 popstate 誤觸重置
 
 const container = document.getElementById('categories-container');
 
@@ -1038,6 +1039,8 @@ window.addEventListener('popstate', (event) => {
     } 
     // 如果是回到 #history (例如從詳細頁按返回，或從搜尋結果返回)
     else if (location.hash === '#history') {
+        if (isSearching) return; // [修正] 如果正在搜尋流程中(剛關閉搜尋視窗)，忽略這次的返回事件，避免清空搜尋結果
+
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
         
@@ -1136,24 +1139,31 @@ if (btnHistory) {
 const btnSearch = document.getElementById('btn-search');
 if (btnSearch) {
     btnSearch.onclick = async () => {
-        const result = await openUniversalModal({
-            title: '搜尋歷史紀錄',
-            desc: '請輸入標題或內容關鍵字：',
-            defaultValue: currentSearchQuery, // 帶入上次搜尋的字
-            showDelete: false
-        });
+        isSearching = true; // [修正] 鎖定：告訴系統我正在搜尋，不要亂重置
+        
+        try {
+            const result = await openUniversalModal({
+                title: '搜尋歷史紀錄',
+                desc: '請輸入標題或內容關鍵字：',
+                defaultValue: currentSearchQuery, // 帶入上次搜尋的字
+                showDelete: false
+            });
 
-        if (result.action === 'confirm') {
-            const query = result.value.trim();
-            if (query) {
-                currentSearchQuery = query;
-                // 推入搜尋狀態
-                history.pushState({ page: 'search' }, 'Search', '#search');
-                
-                // 執行搜尋渲染
-                renderHistory(currentSearchQuery);
-                window.scrollTo({ top: 0, behavior: 'auto' });
+            if (result.action === 'confirm') {
+                const query = result.value.trim();
+                if (query) {
+                    currentSearchQuery = query;
+                    // 推入搜尋狀態
+                    history.pushState({ page: 'search' }, 'Search', '#search');
+                    
+                    // 執行搜尋渲染
+                    renderHistory(currentSearchQuery);
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                }
             }
+        } finally {
+            // [修正] 解鎖：搜尋流程結束後 (稍微延遲以確保事件跑完)，恢復正常監聽
+            setTimeout(() => { isSearching = false; }, 100);
         }
     };
 }
