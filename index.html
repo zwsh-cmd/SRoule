@@ -14,7 +14,18 @@
 </head>
 <body>
 
-    <header>
+    <div id="login-view" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+        <img src="icon.png" alt="Logo" style="width:120px; height:120px; border-radius:24px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); margin-bottom:40px;">
+        <h2 style="color:var(--text-color); margin:0 0 10px 0; font-size:1.5rem;">ScriptRoule</h2>
+        <p style="color:#999; margin:0 0 40px 0;">您的靈感隨身助理</p>
+        
+        <button id="btn-login-main" style="background:#4285F4; color:white; padding:12px 30px; border-radius:50px; font-size:1.1rem; box-shadow: 0 4px 15px rgba(66, 133, 244, 0.3); border:none; cursor:pointer; display:flex; align-items:center; gap:10px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .533 5.333.533 12S5.867 24 12.48 24c3.44 0 6.013-1.147 8.027-3.24 2.053-2.053 2.627-4.96 2.627-7.24 0-.52-.053-1.027-.16-1.467H12.48z"/></svg>
+            <span>使用 Google 登入</span>
+        </button>
+    </div>
+
+    <header id="app-header" style="display:none;">
         <div style="display:flex; align-items:center; gap:6px; cursor:pointer;" onclick="location.href=location.pathname">
             <img src="icon.png" alt="Logo" style="width:48px; height:48px; border-radius:10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
             <h1>ScriptRoule</h1>
