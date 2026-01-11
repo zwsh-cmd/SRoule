@@ -1095,13 +1095,28 @@ function handleScrollToLastItem() {
 const btnHistory = document.getElementById('btn-history');
 if (btnHistory) {
     btnHistory.onclick = () => {
-        // [已移除] 搜尋按鈕顯示控制 (已移至 history-view 內)
-
-        if (location.hash === '#history') {
+        // 如果已經在歷史頁，則只執行重整並確保視圖正確 (解決 Reload 後畫面不同步的問題)
+        if (location.hash === '#history' || location.hash === '#search') {
+            // 強制校正視圖狀態 (防止網址是對的，但畫面卻停在首頁)
+            if(mainView) mainView.style.display = 'none';
+            if(historyView) historyView.style.display = 'block';
+            const resArea = document.getElementById('result-area');
+            if(resArea) resArea.style.display = 'none';
+            const btnGen = document.getElementById('btn-generate');
+            if(btnGen) btnGen.style.display = 'none';
+            
+            // 如果是 #search 狀態下按歷史按鈕，清空搜尋並回到完整歷史
+            if (location.hash === '#search') {
+                currentSearchQuery = '';
+                history.replaceState({ page: 'history' }, 'History', '#history');
+            }
+            
             renderHistory(); 
+            window.scrollTo({ top: 0, behavior: 'auto' });
             return;
         }
 
+        // 正常進入歷史頁流程
         history.pushState({ page: 'history' }, 'History', '#history');
 
         if(mainView) mainView.style.display = 'none';
@@ -1193,13 +1208,14 @@ async function renderHistory(searchQuery = '') {
         stories = JSON.parse(localStorage.getItem('saved_stories') || '[]');
     }
 
-    // [新增] 執行篩選邏輯
+    // [新增] 執行篩選邏輯 (加入 ?. 與 || '' 防止舊資料欄位缺失導致崩潰)
     if (searchQuery) {
         const q = searchQuery.toLowerCase();
         stories = stories.filter(s => 
-            (s.title && s.title.toLowerCase().includes(q)) || 
-            (s.settings_list && s.settings_list.toLowerCase().includes(q)) ||
-            (s.story_outline && s.story_outline.toLowerCase().includes(q))
+            (s.title?.toLowerCase() || '').includes(q) || 
+            (s.settings_list?.toLowerCase() || '').includes(q) ||
+            (s.story_outline?.toLowerCase() || '').includes(q) ||
+            (s.content?.toLowerCase() || '').includes(q) // 兼容舊版 content 欄位
         );
     }
 
@@ -1363,5 +1379,36 @@ async function renderHistory(searchQuery = '') {
     });
 }
 
-// 確保程式一開始會執行渲染
-renderApp();
+// [新增] 初始化路由檢查 (解決重新整理後畫面跳回首頁的問題)
+function handleInitialRoute() {
+    renderApp(); // 先建立首頁內容
+
+    const hash = location.hash;
+    
+    if (hash === '#history') {
+        // 直接進入歷史模式
+        if(mainView) mainView.style.display = 'none';
+        if(historyView) historyView.style.display = 'block';
+        // 隱藏首頁元素
+        const resArea = document.getElementById('result-area');
+        if(resArea) resArea.style.display = 'none';
+        const btnGen = document.getElementById('btn-generate');
+        if(btnGen) btnGen.style.display = 'none';
+        
+        renderHistory();
+    } 
+    else if (hash === '#search') {
+        // 恢復搜尋模式
+        if(mainView) mainView.style.display = 'none';
+        if(historyView) historyView.style.display = 'block';
+        const resArea = document.getElementById('result-area');
+        if(resArea) resArea.style.display = 'none';
+        const btnGen = document.getElementById('btn-generate');
+        if(btnGen) btnGen.style.display = 'none';
+
+        renderHistory(currentSearchQuery); 
+    }
+}
+
+// 啟動應用程式
+handleInitialRoute();
