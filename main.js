@@ -14,6 +14,11 @@ const container = document.getElementById('categories-container');
 
 // 初始化監聽器
 document.addEventListener('DOMContentLoaded', () => {
+    // [修正] 關閉瀏覽器預設的捲動恢復，避免與我們的手動定位衝突
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+
     // 綁定登入登出
     const btnLogin = document.getElementById('btn-login');
     const btnLogout = document.getElementById('btn-logout');
@@ -1037,9 +1042,9 @@ window.addEventListener('popstate', (event) => {
     if (!location.hash || location.hash === '#') {
         goHome();
     } 
-    // 如果是回到 #history (例如從詳細頁按返回，但不是從搜尋結果)
+    // 如果是回到 #history
     else if (location.hash === '#history') {
-        if (isSearching) return; // 防止搜尋視窗關閉時觸發重置
+        if (isSearching) return; 
 
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
@@ -1047,53 +1052,64 @@ window.addEventListener('popstate', (event) => {
         // 清空搜尋狀態
         currentSearchQuery = ''; 
         
-        // 確保列表顯示，詳情隱藏
         document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
         document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
         
         const btnBack = document.getElementById('btn-back-home');
         if(btnBack) btnBack.textContent = '返回首頁';
 
-        // [關鍵修正] 使用 .then() 確保資料渲染完成後，才執行捲動
+        // 使用 .then() 確保渲染後捲動
         renderHistory().then(() => {
             handleScrollToLastItem();
         });
     }
-    // [新增] 搜尋結果頁面路由 (從詳細頁返回這裡)
+    // 如果是回到 #search (搜尋結果頁)
     else if (location.hash === '#search') {
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
 
-        // 確保列表顯示，詳情隱藏
         document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
         document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
 
         const btnBack = document.getElementById('btn-back-home');
         if(btnBack) btnBack.textContent = '返回列表'; 
 
-        // [關鍵修正] 帶入搜尋字串渲染，並使用 .then() 確保渲染後才捲動
-        // 這樣可以確保回到的是「搜尋結果列表」，且會定位到剛剛看的那一篇
-        renderHistory(currentSearchQuery).then(() => {
+        // [關鍵修正] 優先從 history.state 讀取搜尋關鍵字，如果沒有才用全域變數
+        const savedQuery = event.state && event.state.query ? event.state.query : currentSearchQuery;
+        
+        // 更新全域變數，保持同步
+        if (savedQuery) currentSearchQuery = savedQuery;
+
+        renderHistory(savedQuery).then(() => {
             handleScrollToLastItem();
         });
     }
+});
 
-// [新增] 獨立出捲動邏輯，供 #history 與 #search 共用
+// [新增] 獨立出捲動邏輯，供 #history 與 #search 共用 (放在外面)
 function handleScrollToLastItem() {
     if (window.lastViewedStoryId) {
-        const targetItem = document.getElementById('history-story-' + window.lastViewedStoryId);
-        if (targetItem) {
-            setTimeout(() => {
-                const headerOffset = 90;
-                const elementPosition = targetItem.getBoundingClientRect().top;
-                const offsetPosition = elementPosition + window.scrollY - headerOffset;
-                window.scrollTo({ top: offsetPosition, behavior: 'auto' });
-            }, 50); // 微調延遲時間確保 DOM 渲染
-        }
-        window.lastViewedStoryId = null;
+        // 使用 requestAnimationFrame 確保畫面重繪完成後再執行
+        requestAnimationFrame(() => {
+            const targetItem = document.getElementById('history-story-' + window.lastViewedStoryId);
+            if (targetItem) {
+                // 微微延遲以配合某些手機瀏覽器的渲染時機
+                setTimeout(() => {
+                    const headerOffset = 90;
+                    const elementPosition = targetItem.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.scrollY - headerOffset;
+                    window.scrollTo({ top: offsetPosition, behavior: 'auto' });
+                    
+                    // 只有成功捲動或找不到元素時才清除 ID
+                    window.lastViewedStoryId = null;
+                }, 50);
+            } else {
+                // 如果真的找不到 (例如被篩選掉了)，也清除 ID 避免殘留
+                window.lastViewedStoryId = null;
+            }
+        });
     }
 }
-});
 
 // 3. 設定「歷史紀錄」按鈕 (加入 #history)
 const btnHistory = document.getElementById('btn-history');
@@ -1154,8 +1170,8 @@ if (btnSearch) {
                 const query = result.value.trim();
                 if (query) {
                     currentSearchQuery = query;
-                    // 推入搜尋狀態
-                    history.pushState({ page: 'search' }, 'Search', '#search');
+                    // [修正] 將搜尋關鍵字存入 history.state，確保返回時能找回搜尋內容
+                    history.pushState({ page: 'search', query: query }, 'Search', '#search');
                     
                     // 執行搜尋渲染
                     renderHistory(currentSearchQuery);
