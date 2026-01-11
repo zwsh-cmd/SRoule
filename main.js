@@ -1020,10 +1020,7 @@ function goHome() {
     const btnBack = document.getElementById('btn-back-home');
     if(btnBack) btnBack.textContent = '返回首頁';
     
-    // [新增] 回到首頁時，隱藏搜尋按鈕
-    const btnSearch = document.getElementById('btn-search');
-    if(btnSearch) btnSearch.style.display = 'none';
-
+    // [已移除] 搜尋按鈕已移至歷史頁面內部，無需在此控制顯示
     // [已移除] 自動捲動到頂部的指令，保持畫面位置
 }
 
@@ -1039,14 +1036,14 @@ window.addEventListener('popstate', (event) => {
     if (!location.hash || location.hash === '#') {
         goHome();
     } 
-    // 如果是回到 #history (例如從詳細頁按返回)
+    // 如果是回到 #history (例如從詳細頁按返回，或從搜尋結果返回)
     else if (location.hash === '#history') {
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
         
-        // 確保搜尋按鈕顯示
-        const btnSearch = document.getElementById('btn-search');
-        if(btnSearch) btnSearch.style.display = 'block';
+        // [修正] 回到完整歷史紀錄時，清空搜尋狀態並重新渲染
+        currentSearchQuery = ''; 
+        renderHistory(); 
 
         // 確保列表顯示，詳情隱藏
         document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
@@ -1063,10 +1060,6 @@ window.addEventListener('popstate', (event) => {
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
 
-        // 搜尋模式下，也要顯示搜尋按鈕 (方便再次搜尋)
-        const btnSearch = document.getElementById('btn-search');
-        if(btnSearch) btnSearch.style.display = 'block';
-
         // 呼叫 renderHistory 帶入目前的搜尋字串
         renderHistory(currentSearchQuery);
 
@@ -1075,7 +1068,7 @@ window.addEventListener('popstate', (event) => {
         document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
 
         const btnBack = document.getElementById('btn-back-home');
-        if(btnBack) btnBack.textContent = '返回列表'; // 搜尋模式下改為返回列表(其實是回到完整歷史)
+        if(btnBack) btnBack.textContent = '返回列表'; // 搜尋模式下改為返回列表
 
         // 執行捲動邏輯 (從內容回到搜尋列表時，也要定位)
         handleScrollToLastItem();
@@ -1102,9 +1095,7 @@ function handleScrollToLastItem() {
 const btnHistory = document.getElementById('btn-history');
 if (btnHistory) {
     btnHistory.onclick = () => {
-        // 顯示搜尋按鈕
-        const btnSearch = document.getElementById('btn-search');
-        if(btnSearch) btnSearch.style.display = 'block';
+        // [已移除] 搜尋按鈕顯示控制 (已移至 history-view 內)
 
         if (location.hash === '#history') {
             renderHistory(); 
@@ -1172,6 +1163,12 @@ async function renderHistory(searchQuery = '') {
     if (!list) return;
 
     list.innerHTML = '<div style="text-align:center; padding:20px;">載入中...</div>';
+
+    // [新增] 根據搜尋狀態修改標題
+    const titleEl = document.getElementById('history-title');
+    if (titleEl) {
+        titleEl.textContent = searchQuery ? '搜尋結果' : '歷史紀錄';
+    }
     
     const btnBack = document.getElementById('btn-back-home');
     // 如果是在搜尋模式，按鈕文字改成「返回列表」
