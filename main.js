@@ -423,7 +423,8 @@ function openConfirmModal({ title, desc }) {
 }
 
 // 1. 通用異步視窗 (Promise-based Modal)
-function openUniversalModal({ title, desc, defaultValue, showDelete, hideInput }) {
+// [架構升級] 新增 preventBackOnConfirm 參數，允許搜尋功能接管歷史導航
+function openUniversalModal({ title, desc, defaultValue, showDelete, hideInput, preventBackOnConfirm }) {
     return new Promise((resolve) => {
         const modal = document.getElementById('universal-modal');
         const titleEl = document.getElementById('u-modal-title');
@@ -438,34 +439,37 @@ function openUniversalModal({ title, desc, defaultValue, showDelete, hideInput }
         descEl.textContent = desc || '';
         inputEl.value = defaultValue || '';
         
-        // 支援隱藏輸入框
         if (hideInput) {
             inputEl.style.display = 'none';
         } else {
             inputEl.style.display = 'block';
         }
         
-        // 設定按鈕狀態
         btnDelete.style.display = showDelete ? 'block' : 'none';
         btnConfirm.textContent = showDelete ? '修改' : '確定';
 
-        // [新增] 歷史狀態堆疊：推入 #universal，確保按返回鍵時只關閉此視窗
         history.pushState({ modal: 'universal' }, 'Universal', '#universal');
         modal.style.display = 'flex';
         if (!hideInput) inputEl.focus();
 
-        // 監聽返回鍵 (Popstate)
         const onPopState = (e) => {
             modal.style.display = 'none';
-            window.removeEventListener('popstate', onPopState); // 移除監聽
+            window.removeEventListener('popstate', onPopState);
             resolve({ action: 'cancel' });
         };
         window.addEventListener('popstate', onPopState);
 
-        // 內部關閉函式：透過按鈕關閉時，手動退回上一頁
         const closeByButton = (result) => {
             window.removeEventListener('popstate', onPopState);
-            history.back(); // 消除網址上的 #universal
+            
+            // [關鍵修改] 如果設定了 preventBackOnConfirm 且是確認動作，就不執行 history.back()
+            // 這讓呼叫者 (搜尋按鈕) 可以使用 replaceState 無縫切換頁面
+            if (result.action === 'confirm' && preventBackOnConfirm) {
+                // 不退回，保留在當前歷史節點供 replace 使用
+            } else {
+                history.back(); // 其他情況維持原樣，消除 #universal
+            }
+            
             modal.style.display = 'none';
             resolve(result);
         };
@@ -1157,31 +1161,36 @@ if (btnHistory) {
 const btnSearch = document.getElementById('btn-search');
 if (btnSearch) {
     btnSearch.onclick = async () => {
-        isSearching = true; // [修正] 鎖定：告訴系統我正在搜尋，不要亂重置
+        isSearching = true; 
         
         try {
+            // 呼叫時啟用 preventBackOnConfirm: true
             const result = await openUniversalModal({
                 title: '搜尋歷史紀錄',
                 desc: '請輸入標題或內容關鍵字：',
-                defaultValue: currentSearchQuery, // 帶入上次搜尋的字
-                showDelete: false
+                defaultValue: currentSearchQuery, 
+                showDelete: false,
+                preventBackOnConfirm: true // [新參數] 告訴視窗：按確定時不要自動退回
             });
 
             if (result.action === 'confirm') {
                 const query = result.value.trim();
                 if (query) {
                     currentSearchQuery = query;
-                    // [修正] 將搜尋關鍵字存入 history.state，確保返回時能找回搜尋內容
-                    history.pushState({ page: 'search', query: query }, 'Search', '#search');
                     
-                    // 執行搜尋渲染
+                    // [完美方案] 直接將當前的 #universal 視窗狀態「替換」為 #search 搜尋結果
+                    // 不會有 back() 和 push() 的競爭，絕對穩定
+                    history.replaceState({ page: 'search', query: query }, 'Search', '#search');
+                    
                     renderHistory(currentSearchQuery);
                     window.scrollTo({ top: 0, behavior: 'auto' });
+                } else {
+                    // 如果輸入空白，還是要手動退回 (因為 preventBackOnConfirm 擋住了自動退回)
+                    history.back();
                 }
             }
         } finally {
-            // [修正] 解鎖：搜尋流程結束後 (稍微延遲以確保事件跑完)，恢復正常監聽
-            setTimeout(() => { isSearching = false; }, 100);
+            isSearching = false;
         }
     };
 }
