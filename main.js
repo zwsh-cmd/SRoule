@@ -1037,17 +1037,16 @@ window.addEventListener('popstate', (event) => {
     if (!location.hash || location.hash === '#') {
         goHome();
     } 
-    // 如果是回到 #history (例如從詳細頁按返回，或從搜尋結果返回)
+    // 如果是回到 #history (例如從詳細頁按返回，但不是從搜尋結果)
     else if (location.hash === '#history') {
-        if (isSearching) return; // [修正] 如果正在搜尋流程中(剛關閉搜尋視窗)，忽略這次的返回事件，避免清空搜尋結果
+        if (isSearching) return; // 防止搜尋視窗關閉時觸發重置
 
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
         
-        // [修正] 回到完整歷史紀錄時，清空搜尋狀態並重新渲染
+        // 清空搜尋狀態
         currentSearchQuery = ''; 
-        renderHistory(); 
-
+        
         // 確保列表顯示，詳情隱藏
         document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
         document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
@@ -1055,26 +1054,28 @@ window.addEventListener('popstate', (event) => {
         const btnBack = document.getElementById('btn-back-home');
         if(btnBack) btnBack.textContent = '返回首頁';
 
-        // [重構] 捲動邏輯 (共用)
-        handleScrollToLastItem();
+        // [關鍵修正] 使用 .then() 確保資料渲染完成後，才執行捲動
+        renderHistory().then(() => {
+            handleScrollToLastItem();
+        });
     }
-    // [新增] 搜尋結果頁面路由
+    // [新增] 搜尋結果頁面路由 (從詳細頁返回這裡)
     else if (location.hash === '#search') {
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
-
-        // 呼叫 renderHistory 帶入目前的搜尋字串
-        renderHistory(currentSearchQuery);
 
         // 確保列表顯示，詳情隱藏
         document.querySelectorAll('.history-item').forEach(item => item.style.display = 'block');
         document.querySelectorAll('.history-detail').forEach(d => d.style.display = 'none');
 
         const btnBack = document.getElementById('btn-back-home');
-        if(btnBack) btnBack.textContent = '返回列表'; // 搜尋模式下改為返回列表
+        if(btnBack) btnBack.textContent = '返回列表'; 
 
-        // 執行捲動邏輯 (從內容回到搜尋列表時，也要定位)
-        handleScrollToLastItem();
+        // [關鍵修正] 帶入搜尋字串渲染，並使用 .then() 確保渲染後才捲動
+        // 這樣可以確保回到的是「搜尋結果列表」，且會定位到剛剛看的那一篇
+        renderHistory(currentSearchQuery).then(() => {
+            handleScrollToLastItem();
+        });
     }
 
 // [新增] 獨立出捲動邏輯，供 #history 與 #search 共用
