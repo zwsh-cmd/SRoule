@@ -187,9 +187,11 @@ function renderDropdownRow(parent, cat, subCat, items) {
     // [修改] 建立 "偽" 下拉選單 (div 模擬)
     const fakeSelect = document.createElement('div');
     fakeSelect.className = 'fake-select';
-    fakeSelect.id = `select-${cat}-${subCat || 'main'}`; // 保留 ID 供生成邏輯抓取
-    fakeSelect.textContent = '隨機選取'; 
-    fakeSelect.dataset.value = ''; 
+    fakeSelect.id = `select-${cat}-${subCat || 'main'}`; 
+    // [修改] 預設改為「不設定」
+    fakeSelect.textContent = '不設定'; 
+    fakeSelect.dataset.value = '不設定'; 
+    fakeSelect.style.color = '#bfaea8'; // 預設使用莫蘭迪粉/灰色
 
     // 點擊觸發自定義視窗
     fakeSelect.onclick = () => {
@@ -197,9 +199,18 @@ function renderDropdownRow(parent, cat, subCat, items) {
             subCat || cat, 
             items, 
             (selectedVal) => { // onSelect
-                fakeSelect.textContent = selectedVal || '隨機選取';
+                // [修改] 根據選擇的值更新顯示樣式
+                if (selectedVal === '不設定') {
+                    fakeSelect.textContent = '不設定';
+                    fakeSelect.style.color = '#bfaea8';
+                } else if (selectedVal === '') {
+                    fakeSelect.textContent = '隨機選取';
+                    fakeSelect.style.color = '#8fa3ad';
+                } else {
+                    fakeSelect.textContent = selectedVal;
+                    fakeSelect.style.color = '#5e6b75';
+                }
                 fakeSelect.dataset.value = selectedVal;
-                fakeSelect.style.color = selectedVal ? '#5e6b75' : '#888';
             },
             () => addItemViaPrompt(cat, subCat), // onAdd
             (valToDelete) => { // [新增] onDelete
@@ -208,11 +219,11 @@ function renderDropdownRow(parent, cat, subCat, items) {
                     items.splice(idx, 1); // 刪除資料
                     saveData(appData); // 存檔
                     
-                    // 如果刪除的是當前選中的值，重置為隨機
+                    // 如果刪除的是當前選中的值，重置為「不設定」
                     if (fakeSelect.dataset.value === valToDelete) {
-                        fakeSelect.textContent = '隨機選取';
-                        fakeSelect.dataset.value = '';
-                        fakeSelect.style.color = '#888';
+                        fakeSelect.textContent = '不設定';
+                        fakeSelect.dataset.value = '不設定';
+                        fakeSelect.style.color = '#bfaea8';
                     }
                 }
             }
@@ -224,8 +235,17 @@ function renderDropdownRow(parent, cat, subCat, items) {
         get: function() { return this.dataset.value; },
         set: function(v) { 
             this.dataset.value = v; 
-            this.textContent = v || '隨機選取';
-            this.style.color = v ? '#5e6b75' : '#888';
+            // [修改] 針對不同值設定顯示樣式
+            if (v === '不設定') {
+                this.textContent = '不設定';
+                this.style.color = '#bfaea8';
+            } else if (v === '' || v === '隨機選取') {
+                this.textContent = '隨機選取';
+                this.style.color = '#8fa3ad';
+            } else {
+                this.textContent = v;
+                this.style.color = '#5e6b75';
+            }
         }
     });
 
@@ -288,7 +308,17 @@ function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修
             resolve(null);
         };
 
-        // 1. 將「新增選項」放在列表最上方
+        // 1. [修改] 「不設定」排在最上面 (第一順位)
+        const notSetItem = document.createElement('div');
+        notSetItem.className = 'selection-item';
+        notSetItem.innerHTML = '<span style="color:#bfaea8">🚫 不設定 (AI 將忽略此項)</span>';
+        notSetItem.onclick = () => {
+             onSelect('不設定');
+             closeWithBack();
+        };
+        listEl.appendChild(notSetItem);
+
+        // 2. 「新增選項」排在第二順位
         if (onAdd) {
             const addItem = document.createElement('div');
             addItem.className = 'selection-item';
@@ -299,18 +329,17 @@ function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修
             addItem.innerHTML = '<span style="font-size:105%">➕ 新增選項...</span>';
             
             addItem.onclick = async () => {
-                // [修改] 等待新增完成，如果成功回傳了值，就自動選中並回到首頁
                 const newVal = await onAdd(); 
                 if (newVal) {
-                    onSelect(newVal); // 更新選中狀態
-                    closeWithBack();  // 關閉下拉選單視窗，回到首頁
+                    onSelect(newVal); 
+                    closeWithBack();
                 }
             };
             listEl.appendChild(addItem);
         }
 
-        // 2. 建立選項
-        const allOptions = ['隨機選取', '不設定', ...options];
+        // 3. 建立其餘選項 (隨機選取 + 資料庫選項)
+        const allOptions = ['隨機選取', ...options];
         
         allOptions.forEach(opt => {
             const item = document.createElement('div');
@@ -318,48 +347,37 @@ function openSelectionModal(title, options, onSelect, onAdd, onDelete) { // [修
             
             const textSpan = document.createElement('span');
             
-            // [修改] 針對特殊選項設定顯示文字與顏色
             if (opt === '隨機選取') {
                 textSpan.textContent = '🎲 隨機選取';
                 textSpan.style.color = '#8fa3ad';
-            } else if (opt === '不設定') {
-                textSpan.textContent = '🚫 不設定 (AI 將忽略此項)';
-                textSpan.style.color = '#bfaea8'; // 使用莫蘭迪粉/灰色標示
             } else {
                 textSpan.textContent = opt;
             }
             
             item.appendChild(textSpan);
 
-            // [新增] 長按刪除邏輯
+            // 長按刪除邏輯
             let isLongPress = false;
-            // [修改] 確保 隨機選取 與 不設定 不能被刪除
-            if (onDelete && opt !== '隨機選取' && opt !== '不設定') {
+            // 隨機選取 不能被刪除
+            if (onDelete && opt !== '隨機選取') {
                 addLongPressEvent(item, async () => {
-                    isLongPress = true; // 標記為長按，防止觸發 click
+                    isLongPress = true; 
                     
-                    // 開啟確認視窗 (會推入 #confirm，網址變成 #selection#confirm)
                     const confirm = await openConfirmModal({
                         title: '刪除選項',
                         desc: `確定要刪除「${opt}」嗎？`
                     });
 
-                    // 當 openConfirmModal 關閉時，它會執行 history.back()，網址變回 #selection
-                    // 此時 onPopState 會觸發，但我們會因為 hash 檢測而攔截，讓選單視窗保持開啟
-
                     if (confirm.action === 'confirm') {
                         onDelete(opt);
-                        item.remove(); // 直接從 DOM 移除，不用重整
+                        item.remove(); 
                     }
-                    
-                    // 延遲重置，避免手指抬起瞬間觸發 click
                     setTimeout(() => { isLongPress = false; }, 300);
                 });
             }
 
             item.onclick = () => {
-                if (isLongPress) return; // 如果是長按觸發的，忽略這次點擊
-                // 如果選的是「隨機選取」，值為空字串；如果選「不設定」，值就是「不設定」
+                if (isLongPress) return; 
                 onSelect(opt === '隨機選取' ? '' : opt);
                 closeWithBack();
             };
