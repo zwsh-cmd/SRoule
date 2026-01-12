@@ -639,23 +639,36 @@ async function addItemViaPrompt(cat, subCat) {
 
         if (arr.includes(cleanVal)) {
             alert("這個選項已經存在囉！");
-            return null; // [修改] 重複時回傳 null
+            return null; // 重複時回傳 null
         }
 
         if (subCat) appData[cat][subCat].push(cleanVal);
         else appData[cat].push(cleanVal);
         
+        // [新增] 1. 在重新渲染前，先備份當前所有選單的選擇狀態 (ID -> Value)
+        const savedSelections = {};
+        document.querySelectorAll('.fake-select').forEach(el => {
+            savedSelections[el.id] = el.value;
+        });
+
         saveData(appData);
-        renderApp();
+        renderApp(); // 這一步會重置所有 DOM 元素
         
-        // 自動選中
+        // [新增] 2. 渲染後，將剛剛的選擇狀態還原回去
+        document.querySelectorAll('.fake-select').forEach(el => {
+            if (savedSelections[el.id]) {
+                el.value = savedSelections[el.id]; // 這會觸發 setter 更新 UI (文字顏色等)
+            }
+        });
+
+        // 自動選中 (針對剛剛新增的那個選項，強制選中新值，覆蓋掉原本的狀態)
         setTimeout(() => {
             const selectId = `select-${cat}-${subCat || 'main'}`;
             const select = document.getElementById(selectId);
             if (select) select.value = cleanVal;
         }, 50);
 
-        return cleanVal; // [修改] 成功時回傳新值
+        return cleanVal; // 成功時回傳新值
     }
     return null; // [修改] 取消時回傳 null
 }
