@@ -708,7 +708,14 @@ async function showDeleteMenu(cat, subCat, currentValue) {
 // --- 生成邏輯區 (讀取 Select 選擇) ---
 document.getElementById('btn-generate').addEventListener('click', async () => {
     if (!getApiKey()) {
-        alert("請先點擊右上角「設定」，輸入你的 Gemini API Key！");
+        // [修改] 改用 APP 風格視窗提示，取代原生的 alert
+        await openUniversalModal({
+            title: '需要 API Key',
+            desc: '請先點擊右上角「設定」，輸入您的 Gemini API Key！',
+            defaultValue: '',
+            showDelete: false,
+            hideInput: true
+        });
         return;
     }
 
