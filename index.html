@@ -14,12 +14,12 @@
 </head>
 <body>
 
-    <div id="login-view" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:9999; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+    <div id="login-view" style="position:fixed; top:0; left:0; width:100%; height:100%; background:var(--bg-color); z-index:9999; display:none; flex-direction:column; justify-content:center; align-items:center;">
         <img src="icon.png" alt="Logo" style="width:120px; height:120px; border-radius:24px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); margin-bottom:40px;">
         <h2 style="color:var(--text-color); margin:0 0 10px 0; font-size:1.5rem;">ScriptRoule</h2>
         <p style="color:#999; margin:0 0 40px 0;">您的靈感隨身助理</p>
         
-        <div id="loading-indicator" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+        <div id="loading-indicator" style="display:none; flex-direction:column; align-items:center; gap:10px;">
             <div style="width:30px; height:30px; border:3px solid #eee; border-top:3px solid #8fa3ad; border-radius:50%; animation:spin 1s linear infinite;"></div>
             <span style="color:#999; font-size:0.9rem; margin-top:10px;">載入中...</span>
         </div>

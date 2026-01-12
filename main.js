@@ -23,8 +23,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnLoginMain = document.getElementById('btn-login-main');
     if (btnLoginMain && typeof loginWithGoogle !== 'undefined') {
         btnLoginMain.onclick = () => {
-            // [新增] 設立旗標，標記這次是「手動點擊登入」，需要顯示載入動畫
+            // [修正] 點擊瞬間手動打開「載入中」畫面，提供立即回饋
             sessionStorage.setItem('is_manual_login', 'true');
+            
+            const loginView = document.getElementById('login-view');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            
+            if (loginView) loginView.style.display = 'flex'; // 強制顯示背景
+            if (loadingIndicator) loadingIndicator.style.display = 'flex'; // 顯示轉圈
+            if (btnLoginMain) btnLoginMain.style.display = 'none'; // 隱藏按鈕
+            
             loginWithGoogle();
         };
     }
@@ -68,18 +76,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (userInfo) userInfo.style.display = 'flex';
                 if (userAvatar) userAvatar.src = user.photoURL;
 
-                // 啟動 APP 路由與渲染 (確保內容已就緒)
+                // 啟動 APP 路由與渲染
                 handleInitialRoute();
 
                 // 判斷是否為「手動點擊登入」
                 const isManualLogin = sessionStorage.getItem('is_manual_login');
 
                 if (isManualLogin) {
-                    // [情況 A] 首次登入：維持「載入中」畫面，等待雲端同步
+                    // [情況 A] 手動登入：保持「載入中」畫面，直到雲端同步完成
+                    // 注意：因為 HTML 預設隱藏，這裡要強制顯示
+                    if (loginView) loginView.style.display = 'flex';
+                    if (loginView) loginView.style.opacity = '1';
                     if (btnLoginMain) btnLoginMain.style.display = 'none';
                     if (loadingIndicator) loadingIndicator.style.display = 'flex';
                 } else {
-                    // [情況 B] 重新整理/自動登入：直接隱藏登入畫面，顯示 App (不顯示載入動畫)
+                    // [情況 B] 重新整理/自動登入：
+                    // 因為 HTML 預設隱藏了 login-view，所以這裡什麼都不用做，畫面就是乾淨的 App
                     if (loginView) loginView.style.display = 'none';
                     
                     // 確保 App 介面顯示
@@ -96,12 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             const cloudData = doc.data().settings;
                             appData = (typeof cloudData === 'string') ? JSON.parse(cloudData) : cloudData;
                             localStorage.setItem('script_roule_data', JSON.stringify(appData));
-                            renderApp(); // 更新畫面 (使用者可能會看到選單更新)
+                            renderApp(); // 更新畫面
                         }
                     })
                     .catch(err => console.error("同步失敗:", err))
                     .finally(() => {
-                        // 只有在「手動登入」的情況下，才需要負責隱藏載入畫面
+                        // 只有在「手動登入」的情況下，才需要執行淡出動畫
                         if (isManualLogin && loginView) {
                             loginView.style.opacity = '0'; // 淡出效果
                             setTimeout(() => {
@@ -111,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 if (appHeader) appHeader.style.display = 'flex';
                                 if (!location.hash && btnGen) btnGen.style.display = 'flex';
                                 
-                                // 清除旗標，下次重新整理時視為自動登入
+                                // 清除旗標
                                 sessionStorage.removeItem('is_manual_login');
                             }, 300);
                         }
@@ -122,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentUser = null;
                 isCloudMode = false;
 
-                // 確保登入畫面顯示
+                // 只有未登入時，才顯示 login-view
                 if (loginView) {
                     loginView.style.display = 'flex';
                     loginView.style.opacity = '1';
