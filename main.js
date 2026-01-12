@@ -44,61 +44,81 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof auth !== 'undefined') {
         auth.onAuthStateChanged(user => {
             const loginView = document.getElementById('login-view');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const btnLoginMain = document.getElementById('btn-login-main');
+            
             const appHeader = document.getElementById('app-header');
             const btnGen = document.getElementById('btn-generate');
             
-            // 設定頁面內的頭像
             const userInfo = document.getElementById('user-info');
             const userAvatar = document.getElementById('user-avatar');
-            const btnLoginSettings = document.getElementById('btn-login'); // 設定頁裡的登入鈕(通常用不到但保留)
+            const btnLoginSettings = document.getElementById('btn-login');
 
             if (user) {
                 // --- 已登入 ---
                 currentUser = user;
                 isCloudMode = true;
-                console.log("使用者已登入:", user.displayName);
-
-                // 1. UI 切換：隱藏登入頁，顯示 APP
-                if (loginView) loginView.style.display = 'none';
-                if (appHeader) appHeader.style.display = 'flex';
-                if (btnGen) btnGen.style.display = 'flex';
-
-                // 2. 更新設定頁面資訊
+                
+                // 1. 維持「載入中」狀態 (隱藏按鈕，顯示 loading)
+                if (btnLoginMain) btnLoginMain.style.display = 'none';
+                if (loadingIndicator) loadingIndicator.style.display = 'flex';
+                
+                // 2. 更新使用者資訊
                 if (btnLoginSettings) btnLoginSettings.style.display = 'none';
                 if (userInfo) userInfo.style.display = 'flex';
                 if (userAvatar) userAvatar.src = user.photoURL;
 
-                // 3. 啟動 APP 邏輯 (初始化路由)
-                // 這裡呼叫 handleInitialRoute 來決定要顯示首頁還是歷史頁
+                // 3. 啟動 APP 路由與渲染 (確保內容已就緒)
                 handleInitialRoute(); 
 
-                // 4. [雲端同步] 嘗試從雲端下載類別設定
+                // 4. [雲端同步] 讀取雲端資料
+                // 我們等待雲端檢查完畢 (無論成功或失敗) 後，才隱藏載入畫面
                 const db = firebase.firestore();
-                db.collection('users').doc(user.uid).get().then(doc => {
-                    if (doc.exists && doc.data().settings) {
-                        console.log("☁️ 發現雲端備份，正在還原設定...");
-                        const cloudData = doc.data().settings;
-                        if (typeof cloudData === 'string') {
-                            appData = JSON.parse(cloudData);
-                        } else {
-                            appData = cloudData;
+                db.collection('users').doc(user.uid).get()
+                    .then(doc => {
+                        if (doc.exists && doc.data().settings) {
+                            console.log("☁️ 還原雲端設定...");
+                            const cloudData = doc.data().settings;
+                            appData = (typeof cloudData === 'string') ? JSON.parse(cloudData) : cloudData;
+                            localStorage.setItem('script_roule_data', JSON.stringify(appData));
+                            renderApp(); // 更新畫面
                         }
-                        localStorage.setItem('script_roule_data', JSON.stringify(appData));
-                        renderApp(); 
-                    }
-                }).catch(err => console.error("自動同步失敗:", err));
+                    })
+                    .catch(err => console.error("同步失敗:", err))
+                    .finally(() => {
+                        // 5. [關鍵] 只有當資料準備好後，才揭開 APP 介面
+                        // 這樣使用者就不會看到空白畫面或內容跳動
+                        if (loginView) {
+                            loginView.style.opacity = '0'; // 淡出效果
+                            setTimeout(() => {
+                                loginView.style.display = 'none';
+                                
+                                // 顯示 APP 介面
+                                if (appHeader) appHeader.style.display = 'flex';
+                                // 如果在首頁，顯示產生按鈕
+                                if (!location.hash && btnGen) btnGen.style.display = 'flex';
+                            }, 300);
+                        }
+                    });
 
             } else {
                 // --- 未登入 ---
                 currentUser = null;
                 isCloudMode = false;
 
-                // 1. UI 切換：顯示登入頁，隱藏 APP 介面
-                if (loginView) loginView.style.display = 'flex';
+                // 1. 確保登入畫面顯示
+                if (loginView) {
+                    loginView.style.display = 'flex';
+                    loginView.style.opacity = '1';
+                }
+                
+                // 2. 切換為「登入按鈕」狀態 (隱藏 loading)
+                if (loadingIndicator) loadingIndicator.style.display = 'none';
+                if (btnLoginMain) btnLoginMain.style.display = 'flex';
+
+                // 3. 隱藏 APP 介面
                 if (appHeader) appHeader.style.display = 'none';
                 if (btnGen) btnGen.style.display = 'none';
-                
-                // 隱藏其他可能開啟的視窗
                 if (mainView) mainView.style.display = 'none';
                 if (historyView) historyView.style.display = 'none';
                 const resArea = document.getElementById('result-area');
@@ -1450,7 +1470,7 @@ function handleInitialRoute() {
     const hash = location.hash;
     
     if (hash === '#history') {
-        // 直接進入歷史模式
+        // 歷史模式
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
         const resArea = document.getElementById('result-area');
@@ -1461,7 +1481,7 @@ function handleInitialRoute() {
         renderHistory();
     } 
     else if (hash === '#search') {
-        // 恢復搜尋模式
+        // 搜尋模式
         if(mainView) mainView.style.display = 'none';
         if(historyView) historyView.style.display = 'block';
         const resArea = document.getElementById('result-area');
@@ -1469,8 +1489,6 @@ function handleInitialRoute() {
         const btnGen = document.getElementById('btn-generate');
         if(btnGen) btnGen.style.display = 'none';
 
-        // [關鍵修正] 嘗試從 history.state 找回搜尋關鍵字
-        // 這能解決「在搜尋頁按重新整理後，搜尋結果消失」的問題
         let savedQuery = currentSearchQuery;
         if (history.state && history.state.query) {
             savedQuery = history.state.query;
@@ -1478,6 +1496,17 @@ function handleInitialRoute() {
         }
 
         renderHistory(savedQuery); 
+    }
+    else {
+        // [關鍵修正] 如果是首頁 (無 hash)，強制顯示 mainView
+        if(mainView) mainView.style.display = 'block';
+        if(historyView) historyView.style.display = 'none';
+        const btnGen = document.getElementById('btn-generate');
+        if(btnGen) btnGen.style.display = 'flex';
+        
+        // 確保按鈕文字正確
+        const btnBack = document.getElementById('btn-back-home');
+        if(btnBack) btnBack.textContent = '返回首頁';
     }
 }
 
