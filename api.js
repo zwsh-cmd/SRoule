@@ -95,17 +95,20 @@ class GeminiQueue {
 
             const errMsg = error.message.toLowerCase();
 
-            // ★★★ 自動重試判定 ★★★
-            // 包含 429 (太快) 和 503/Overloaded (Google 忙線)
+            // ★★★ 自動重試判定 (增強版) ★★★
+            // 包含 429 (太快)、503 (忙線) 以及 500 (Google 內部錯誤)
             const shouldRetry = 
                 errMsg.includes('429') || 
                 errMsg.includes('resource has been exhausted') ||
                 errMsg.includes('too many requests') ||
                 errMsg.includes('overloaded') || 
-                errMsg.includes('503');
+                errMsg.includes('503') ||
+                errMsg.includes('500') ||             // 新增：伺服器崩潰
+                errMsg.includes('internal error') ||  // 新增：內部錯誤文字
+                errMsg.includes('internal server error');
 
             if (shouldRetry) {
-                console.log(`[系統] Google 忙線或限流 (${errMsg})，${this.retryDelay/1000} 秒後重試...`);
+                console.log(`[系統] Google 伺服器不穩或限流 (${errMsg})，${this.retryDelay/1000} 秒後重試...`);
                 // 把工作「放回隊伍最前面」重試 (插隊)
                 this.queue.unshift(currentItem); 
                 // 罰站休息久一點
