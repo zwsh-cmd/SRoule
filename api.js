@@ -1,4 +1,4 @@
-// api.js - 強韌版 (修復 JSON 解析與 Overloaded 重試)
+// api.js - 終極修復版 (Queue限流 + 版本鎖定 + 智慧JSON修復)
 
 // ==========================================
 // Part 1: 基礎工具
@@ -8,65 +8,86 @@ function getApiKey() {
     return localStorage.getItem('gemini_api_key');
 }
 
+// 讓程式暫停休息的工具 (單位: 毫秒)
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// ★★★ 新增：強力 JSON 清洗工具 ★★★
-// 專門對付 "Bad control character" 和 Gemini 的廢話
-function cleanAndParseJSON(text) {
-    try {
-        // 1. 先嘗試最簡單的清理 (移除 markdown 標籤)
-        let cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+// ★★★ 核心工具：智慧型 JSON 修復器 ★★★
+// 解決 "Bad control character"：當 AI 在字串裡亂按 Enter 時，幫它修好
+function smartJsonFix(jsonStr) {
+    let inString = false;
+    let result = '';
+    
+    // 1. 先移除 Markdown 的 ```json 包裝
+    let clean = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    // 2. 逐字掃描，修正「引號內」的違規換行
+    for (let i = 0; i < clean.length; i++) {
+        const char = clean[i];
         
-        // 2. 如果直接解析失敗，嘗試用「手術刀」只切出 {...} 的部分
-        const firstBrace = cleanText.indexOf('{');
-        const lastBrace = cleanText.lastIndexOf('}');
-        
-        if (firstBrace !== -1 && lastBrace !== -1) {
-            cleanText = cleanText.substring(firstBrace, lastBrace + 1);
+        // 判斷是否遇到引號 (要排除掉前面有反斜線 \" 的轉義引號)
+        if (char === '"' && (i === 0 || clean[i-1] !== '\\')) {
+            inString = !inString; // 切換狀態：進入/離開 字串模式
         }
-
-        // 3. 處理控制字元 (這是導致 Bad control character 的主因)
-        // 將字串中的換行符號等轉換為 JSON 安全的格式
-        cleanText = cleanText.replace(/[\x00-\x1F\x7F]/g, (char) => {
-            // 保留合法的換行與縮排，其他的殺掉
-            if (char === '\n' || char === '\t' || char === '\r') return char;
-            return '';
-        });
-
-        return JSON.parse(cleanText);
+        
+        // 如果現在是在「字串內容」裡面，遇到換行或 Tab，強制轉成符號
+        if (inString) {
+            if (char === '\n') { result += '\\n'; continue; }
+            if (char === '\r') { result += '\\r'; continue; }
+            if (char === '\t') { result += '\\t'; continue; }
+        }
+        
+        // 其他字元照原本的樣式加入
+        result += char;
+    }
+    
+    // 3. 嘗試擷取前後的大括號 (避免 AI 在前後講廢話)
+    const firstBrace = result.indexOf('{');
+    const lastBrace = result.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1) {
+        result = result.substring(firstBrace, lastBrace + 1);
+    }
+    
+    try {
+        return JSON.parse(result);
     } catch (e) {
-        console.error("JSON 解析失敗，原始文字:", text);
-        throw new Error("AI 回傳的格式有誤，無法讀取故事資料。");
+        console.error("智慧修復失敗，原始字串:", clean);
+        throw new Error("AI 回傳的格式嚴重受損，無法讀取。");
     }
 }
+
 
 // ==========================================
 // Part 2: 請求隊列管理器 (Queue & Rate Limiter)
 // ==========================================
 class GeminiQueue {
     constructor() {
-        this.queue = [];
-        this.isProcessing = false;
-        this.minDelay = 2000;
-        this.retryDelay = 5000;
+        this.queue = [];           // 排隊隊伍
+        this.isProcessing = false; // 是否正在處理中
+        this.minDelay = 2000;      // 平常每 2 秒處理一個 (安全速度)
+        this.retryDelay = 5000;    // 如果被擋 (429/503)，罰站 5 秒再試
     }
 
+    // 將請求加入隊列
     add(taskFunction) {
         return new Promise((resolve, reject) => {
             this.queue.push({ task: taskFunction, resolve, reject });
-            this.process();
+            this.process(); // 嘗試啟動處理
         });
     }
 
+    // 處理迴圈
     async process() {
         if (this.isProcessing || this.queue.length === 0) return;
 
         this.isProcessing = true;
-        const currentItem = this.queue.shift();
+        const currentItem = this.queue.shift(); // 取出第一位
 
         try {
+            // 執行請求
             const result = await currentItem.task();
-            currentItem.resolve(result);
+            currentItem.resolve(result); // 成功回傳
+            
+            // 成功後，強制休息一下
             await sleep(this.minDelay);
 
         } catch (error) {
@@ -74,29 +95,33 @@ class GeminiQueue {
 
             const errMsg = error.message.toLowerCase();
 
-            // ★★★ 修正：擴大重試範圍 ★★★
-            // 加入 503 (Overloaded) 和 "overloaded" 關鍵字
+            // ★★★ 自動重試判定 ★★★
+            // 包含 429 (太快) 和 503/Overloaded (Google 忙線)
             const shouldRetry = 
                 errMsg.includes('429') || 
                 errMsg.includes('resource has been exhausted') ||
                 errMsg.includes('too many requests') ||
-                errMsg.includes('overloaded') || // Google 忙線中
-                errMsg.includes('503');          // 服務暫時無法使用
+                errMsg.includes('overloaded') || 
+                errMsg.includes('503');
 
             if (shouldRetry) {
                 console.log(`[系統] Google 忙線或限流 (${errMsg})，${this.retryDelay/1000} 秒後重試...`);
-                this.queue.unshift(currentItem); // 插隊重試
-                await sleep(this.retryDelay);
+                // 把工作「放回隊伍最前面」重試 (插隊)
+                this.queue.unshift(currentItem); 
+                // 罰站休息久一點
+                await sleep(this.retryDelay);    
             } else {
+                // 其他錯誤 (如 key 錯誤、網路斷線) 就直接報錯
                 currentItem.reject(error);
             }
         } finally {
             this.isProcessing = false;
-            this.process();
+            this.process(); // 繼續處理下一位
         }
     }
 }
 
+// 建立全域隊列實體
 const apiQueue = new GeminiQueue();
 
 
@@ -119,6 +144,7 @@ async function getBestModelUrl(apiKey) {
             const nameA = a.name.toLowerCase();
             const nameB = b.name.toLowerCase();
 
+            // 1. 解析版本號工具
             const getVer = (n) => {
                 const match = n.match(/gemini-(\d+(\.\d+)?)/);
                 return match ? parseFloat(match[1]) : 0;
@@ -126,12 +152,16 @@ async function getBestModelUrl(apiKey) {
             const verA = getVer(nameA);
             const verB = getVer(nameB);
 
-            // 天花板過濾：超過 2.5 的不要
+            // 2.【天花板過濾】如果版本超過 2.5，視為「不合格」(設為極小值排到最後)
             const effectiveVerA = verA > 2.5 ? -1 : verA;
             const effectiveVerB = verB > 2.5 ? -1 : verB;
 
-            if (effectiveVerA !== effectiveVerB) return effectiveVerB - effectiveVerA;
+            // 3. 版本比大小：大的排前面 (例如 2.5 > 2.0 > 1.5)
+            if (effectiveVerA !== effectiveVerB) {
+                return effectiveVerB - effectiveVerA;
+            }
 
+            // 4. 同版本時，Flash 優先
             const isFlash = n => n.includes('flash');
             if (isFlash(nameB) && !isFlash(nameA)) return 1;
             if (isFlash(nameA) && !isFlash(nameB)) return -1;
@@ -141,20 +171,24 @@ async function getBestModelUrl(apiKey) {
 
         if (models.length > 0) {
             const bestModel = models[0].name.replace('models/', '');
+            console.log(`[系統] 自動鎖定模型：${bestModel}`); 
             return `https://generativelanguage.googleapis.com/v1beta/models/${bestModel}:generateContent?key=${apiKey}`;
         }
 
     } catch (e) {
         console.warn("模型列表獲取失敗，使用保底方案", e);
     }
+
+    // 終極保底
     return `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 }
 
 
 // ==========================================
-// Part 4: 外部呼叫介面
+// Part 4: 外部呼叫介面 (所有請求都進 Queue)
 // ==========================================
 
+// 內部用的請求執行函式
 async function _makeRequest(prompt) {
     const apiKey = getApiKey();
     if (!apiKey) throw new Error("NO_KEY"); 
@@ -173,8 +207,9 @@ async function _makeRequest(prompt) {
 
     const data = await response.json();
 
+    // 檢查錯誤，如果是 API 端回傳的錯誤，丟出 Error 讓 Queue 捕捉
     if (data.error) {
-        // 將 error code 也放入 message 以便 Queue 判斷
+        // 把錯誤代碼也放進訊息，方便 Queue 判斷是否為 429/503
         throw new Error(`${data.error.code} - ${data.error.message}`);
     }
 
@@ -183,6 +218,7 @@ async function _makeRequest(prompt) {
 
 // 功能 A: 生成故事
 async function generateStory(prompt) {
+    // 透過 Queue 執行
     return apiQueue.add(async () => {
         const data = await _makeRequest(prompt);
         
@@ -192,8 +228,8 @@ async function generateStory(prompt) {
 
         const text = data.candidates[0].content.parts[0].text;
         
-        // ★★★ 改用新寫的強力清洗函式 ★★★
-        return cleanAndParseJSON(text);
+        // ★★★ 使用智慧修復器來解析 JSON ★★★
+        return smartJsonFix(text);
     });
 }
 
@@ -206,6 +242,7 @@ async function generateReply(historyContext, userMessage) {
     請以繁體中文回答。
     `;
 
+    // 透過 Queue 執行
     return apiQueue.add(async () => {
         const data = await _makeRequest(prompt);
         return data.candidates[0].content.parts[0].text;
