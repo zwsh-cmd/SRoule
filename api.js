@@ -208,6 +208,10 @@ async function requestWithFallback(prompt) {
             const data = await _tryRequest(prompt, model.url);
             
             console.log(`✅ 成功！由 ${model.name} 完成任務。`);
+            
+            // [新增] 標記使用模型名稱，以便後續顯示
+            data.used_model = model.name;
+
             return data; // 成功就直接回傳，結束迴圈
 
         } catch (error) {
@@ -251,8 +255,15 @@ async function generateStory(prompt) {
 
         const text = data.candidates[0].content.parts[0].text;
         
-        // 使用智慧修復器
-        return smartJsonFix(text);
+        // 使用智慧修復器解析 JSON
+        const result = smartJsonFix(text);
+
+        // [新增] 將模型名稱傳遞到最終結果物件中
+        if (data.used_model) {
+            result.used_model = data.used_model;
+        }
+
+        return result;
     });
 }
 
